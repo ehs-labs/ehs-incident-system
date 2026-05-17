@@ -216,15 +216,18 @@ services:
   # sidekiq — same image as core-api, different command
   # --------------------------------------------------------------------------
   sidekiq:
-    build:
-      context: ./core-api
-      dockerfile: Dockerfile
-      additional_contexts:
-        shared-envelope: ./shared/envelope
+    # Same image as core-api (same Dockerfile, different command). Sharing the
+    # image guarantees they stay in lockstep — no risk of a stale sidekiq
+    # build lagging behind a fresh core-api build.
+    image: ehs-incident-system-core-api
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
       core-api:
         condition: service_healthy
+    # Override core-api's HTTP healthcheck — sidekiq has no web port. We rely
+    # on sidekiq's own crash-on-error semantics + the Sidekiq dashboard for liveness.
+    healthcheck:
+      disable: true
     environment:
       RAILS_ENV: development
       DATABASE_URL: postgres://${POSTGRES_USER:-ehs}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_APP_DB:-ehs_app}

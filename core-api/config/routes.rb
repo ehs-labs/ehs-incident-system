@@ -6,9 +6,12 @@ Rails.application.routes.draw do
   require "sidekiq/web"
   mount Sidekiq::Web => "/sidekiq"
 
-  # OpenAPI / Swagger UI (rswag) — useful in dev
-  mount Rswag::Ui::Engine  => "/api-docs"
-  mount Rswag::Api::Engine => "/api-docs"
+  # OpenAPI / Swagger UI (rswag) — only when the gem is actually loaded.
+  # rswag is in the dev/test bundle group; production images skip it.
+  if defined?(Rswag::Ui) && defined?(Rswag::Api)
+    mount Rswag::Ui::Engine  => "/api-docs"
+    mount Rswag::Api::Engine => "/api-docs"
+  end
 
   namespace :api do
     namespace :v1 do

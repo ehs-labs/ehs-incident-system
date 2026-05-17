@@ -6,7 +6,7 @@
 # =============================================================================
 
 # ---------- Build stage ------------------------------------------------------
-FROM ruby:3.3.0-slim AS build
+FROM ruby:3.4.1-slim AS build
 
 # Gemfile.lock is generated inside the build until we commit one; once
 # committed, switch BUNDLE_DEPLOYMENT to "1" for reproducible CI builds.
@@ -44,7 +44,7 @@ COPY . .
 RUN bundle exec bootsnap precompile --gemfile app/ lib/
 
 # ---------- Final stage ------------------------------------------------------
-FROM ruby:3.3.0-slim AS final
+FROM ruby:3.4.1-slim AS final
 
 ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
@@ -62,7 +62,12 @@ RUN apt-get update -qq && \
     groupadd --system --gid 1001 ruby && \
     useradd --uid 1001 --gid 1001 --create-home --shell /bin/bash ruby
 
-ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+# jemalloc reduces Ruby memory fragmentation. Path is arch-specific
+# (x86_64-linux-gnu on Intel, aarch64-linux-gnu on ARM); resolve at build time
+# so the same Dockerfile works on both. Symlink to a known path; the LD_PRELOAD
+# env var is set when running so the loader picks it up universally.
+RUN ln -s "$(find /usr/lib -name 'libjemalloc.so.2' | head -1)" /usr/local/lib/libjemalloc.so.2
+ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
 
 WORKDIR /app
 COPY --from=build --chown=ruby:ruby /usr/local/bundle /usr/local/bundle

@@ -7,8 +7,8 @@ module Handlers
 
     module_function
 
-    def register(event_type, handler)
-      HANDLERS[event_type] = handler
+    def register(event_type, handler = nil, &block)
+      HANDLERS[event_type] = handler || block
     end
 
     def dispatch(event)

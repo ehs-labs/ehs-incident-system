@@ -4,7 +4,7 @@
 # notifier Dockerfile — Sinatra app with Karafka consumers + Falcon WS server
 # =============================================================================
 
-FROM ruby:3.3.0-slim AS build
+FROM ruby:3.4.1-slim AS build
 
 # Gemfile.lock is generated inside the build until we commit one; once
 # committed, switch BUNDLE_DEPLOYMENT to "1" for reproducible CI builds.
@@ -31,7 +31,7 @@ RUN bundle install && \
 COPY . .
 
 # ---------- Final stage ------------------------------------------------------
-FROM ruby:3.3.0-slim AS final
+FROM ruby:3.4.1-slim AS final
 
 ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
