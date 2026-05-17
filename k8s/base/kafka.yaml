@@ -24,13 +24,16 @@ spec:
     spec:
       containers:
         - name: kafka
-          image: bitnami/kafka:3.7
+          # bitnamilegacy/kafka:3.8.x — `latest` jumps to Kafka 4.0 which dropped
+          # older protocol versions Karapace 3.7.1's kafka-python client needs.
+          image: bitnamilegacy/kafka:3.8.1
           env:
             - { name: KAFKA_CFG_NODE_ID, value: "0" }
             - { name: KAFKA_CFG_PROCESS_ROLES, value: "controller,broker" }
             - { name: KAFKA_CFG_LISTENERS, value: "PLAINTEXT://:9092,CONTROLLER://:9093" }
             - { name: KAFKA_CFG_ADVERTISED_LISTENERS, value: "PLAINTEXT://kafka:9092" }
             - { name: KAFKA_CFG_CONTROLLER_LISTENER_NAMES, value: "CONTROLLER" }
+            - { name: KAFKA_CFG_INTER_BROKER_LISTENER_NAME, value: "PLAINTEXT" }
             - { name: KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP, value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT" }
             - { name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS, value: "0@kafka-0.kafka:9093" }
             - { name: KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE, value: "false" }
@@ -66,15 +69,23 @@ spec:
       containers:
         - name: karapace
           image: ghcr.io/aiven/karapace:latest
+          # Image has no default entrypoint — dispatch via start.sh.
+          command: ["/opt/karapace/start.sh", "registry"]
           env:
-            - { name: KARAPACE_BOOTSTRAP_URI, value: "kafka:9092" }
-            - { name: KARAPACE_HOST, value: "0.0.0.0" }
-            - { name: KARAPACE_PORT, value: "8081" }
             - { name: KARAPACE_REGISTRY_HOST, value: "0.0.0.0" }
             - { name: KARAPACE_REGISTRY_PORT, value: "8081" }
-            - { name: KARAPACE_COMPATIBILITY, value: "BACKWARD" }
+            - { name: KARAPACE_REGISTRY_BOOTSTRAP_URI, value: "kafka:9092" }
+            - { name: KARAPACE_REGISTRY_CLIENT_ID, value: "karapace" }
+            - { name: KARAPACE_REGISTRY_GROUP_ID, value: "schema-registry" }
+            - { name: KARAPACE_REGISTRY_TOPIC_NAME, value: "_schemas" }
+            - { name: KARAPACE_REGISTRY_COMPATIBILITY, value: "BACKWARD" }
+            - { name: KARAPACE_REGISTRY_MASTER_ELIGIBILITY, value: "true" }
           ports: [{ containerPort: 8081 }]
           readinessProbe:
             httpGet: { path: /subjects, port: 8081 }
-            initialDelaySeconds: 15
+            initialDelaySeconds: 30
             periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /_health, port: 8081 }
+            initialDelaySeconds: 60
+            periodSeconds: 30

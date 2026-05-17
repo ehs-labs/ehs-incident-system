@@ -52,13 +52,17 @@ services:
   # Kafka in KRaft mode (no Zookeeper)
   # --------------------------------------------------------------------------
   kafka:
-    image: bitnami/kafka:3.7
+    # Bitnami moved non-LTS Kafka images to the bitnamilegacy/ namespace.
+    # Pinned to 3.8.x — `latest` jumps to Kafka 4.0 which dropped older
+    # protocol versions Karapace 3.7.1's kafka-python client still needs.
+    image: bitnamilegacy/kafka:3.8.1
     environment:
-      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_NODE_ID: "0"
       KAFKA_CFG_PROCESS_ROLES: controller,broker
       KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
       KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
@@ -67,32 +71,38 @@ services:
       - kafka-data:/bitnami/kafka
     ports: ["9092:9092"]
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9092'"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   # --------------------------------------------------------------------------
   # Karapace — open-source schema registry (Avro)
   # --------------------------------------------------------------------------
   karapace:
     image: ghcr.io/aiven/karapace:latest
+    # The image's default CMD is just `python3`; it expects the bundled
+    # start.sh dispatcher to be invoked with `registry` (or `rest`) mode.
+    command: ["/opt/karapace/start.sh", "registry"]
     depends_on:
       kafka:
         condition: service_healthy
     environment:
-      KARAPACE_BOOTSTRAP_URI: kafka:9092
-      KARAPACE_HOST: 0.0.0.0
-      KARAPACE_PORT: 8081
       KARAPACE_REGISTRY_HOST: 0.0.0.0
       KARAPACE_REGISTRY_PORT: 8081
-      KARAPACE_COMPATIBILITY: BACKWARD
+      KARAPACE_REGISTRY_BOOTSTRAP_URI: kafka:9092
+      KARAPACE_REGISTRY_CLIENT_ID: karapace
+      KARAPACE_REGISTRY_GROUP_ID: schema-registry
+      KARAPACE_REGISTRY_TOPIC_NAME: _schemas
+      KARAPACE_REGISTRY_COMPATIBILITY: BACKWARD
+      KARAPACE_REGISTRY_MASTER_ELIGIBILITY: "true"
     ports: ["8081:8081"]
     healthcheck:
-      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8081/subjects || exit 1"]
+      test: ["CMD-SHELL", "python3 /opt/karapace/healthcheck.py http://localhost:8081/_health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
+      start_period: 30s
 
   # --------------------------------------------------------------------------
   # Kafka UI — inspect topics & messages (Avro-aware via Karapace)

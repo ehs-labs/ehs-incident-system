@@ -2,12 +2,19 @@
 
 > A portfolio-grade Environment, Health & Safety (EHS) incident management platform built with Ruby on Rails, Vue 3 + TypeScript, and an event-driven Kafka pipeline.
 
-[![CI](https://github.com/stitch80/ehs-incident-system/actions/workflows/ci.yml/badge.svg)](https://github.com/stitch80/ehs-incident-system/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Ruby](https://img.shields.io/badge/Ruby-3.3-red)
 ![Rails](https://img.shields.io/badge/Rails-7.2-red)
 ![Vue](https://img.shields.io/badge/Vue-3-green)
 ![Node](https://img.shields.io/badge/Node-20-green)
+
+<!--
+  CI badge — uncomment after pushing to GitHub and once the first CI run completes.
+  Update `stitch80` if the repo lives under a different owner.
+
+  [![CI](https://github.com/stitch80/ehs-incident-system/actions/workflows/ci.yml/badge.svg)](https://github.com/stitch80/ehs-incident-system/actions/workflows/ci.yml)
+-->
+
 
 ## What this is
 
