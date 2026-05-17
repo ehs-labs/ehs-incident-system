@@ -39,23 +39,47 @@ Rails.application.routes.draw do
       end
 
       # ----- Profile ---------------------------------------------------
-      resource :me, only: %i[show update], controller: "me"
+      resource :me, only: %i[show update], controller: "me" do
+        post :telegram_link
+      end
 
       # ----- Domain ---------------------------------------------------
       resources :sites, only: %i[index show create update destroy]
       resources :incidents do
-        resources :attachments,        only: %i[index create destroy], shallow: true
-        resources :comments,           only: %i[index create],         shallow: true
+        resources :attachments,        only: %i[index create]
+        resources :comments,           only: %i[index create]
+        resources :witnesses,          only: %i[index create]
         resources :corrective_actions, only: %i[index create]
+        resources :versions,           only: :index, controller: "incident_versions"
         member do
           post "transitions", to: "incidents#transition"
         end
       end
-      resources :corrective_actions, only: %i[show update] do
-        member { post "transitions", to: "corrective_actions#update" }
+
+      resources :attachments, only: %i[destroy]
+      resources :comments,    only: %i[show update destroy]
+      resources :witnesses,   only: %i[show update destroy]
+
+      resources :corrective_actions, only: %i[index show update] do
+        member { post "transitions", to: "corrective_actions#transition" }
+        resources :versions, only: :index, controller: "corrective_action_versions"
       end
+
       resources :notifications, only: %i[index update]
       get "dashboard", to: "dashboard#show"
+
+      # ----- Admin -----------------------------------------------------
+      namespace :admin do
+        resources :users, only: %i[index show destroy] do
+          collection { post :invite }
+          member do
+            post :lock
+            post :unlock
+          end
+        end
+        resources :sites, only: %i[index show create update destroy]
+        resource  :settings, only: %i[show update], controller: "settings"
+      end
     end
   end
 end

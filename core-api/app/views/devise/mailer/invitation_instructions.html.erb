@@ -1,0 +1,12 @@
+<p>Hello <%= @resource.email %>,</p>
+
+<p>You have been invited to <%= ENV.fetch("APP_HOST", "the EHS incident system") %>.</p>
+
+<p>Please use this token to accept your invitation:</p>
+<p><code><%= @token %></code></p>
+
+<p>From your client, send this token to <code>POST /api/v1/auth/accept_invitation</code> with your new password.</p>
+
+<%- if @resource.invitation_due_at -%>
+<p>This invitation expires at <%= @resource.invitation_due_at %>.</p>
+<%- end -%>

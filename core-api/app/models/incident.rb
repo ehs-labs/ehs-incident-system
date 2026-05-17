@@ -5,6 +5,8 @@ class Incident < ApplicationRecord
   include TenantScoped
   include PgSearch::Model
 
+  has_paper_trail
+
   # ----- Associations --------------------------------------------------------
   belongs_to :organization
   belongs_to :site
@@ -12,6 +14,9 @@ class Incident < ApplicationRecord
   belongs_to :assignee, class_name: "User", optional: true
 
   has_many_attached :photos
+
+  has_many :witnesses, dependent: :destroy
+  has_many :comments,  dependent: :destroy
 
   # ----- Validations ---------------------------------------------------------
   SEVERITIES = (1..5).freeze
@@ -91,7 +96,11 @@ class Incident < ApplicationRecord
 
   # SLA window (in seconds) for triage by severity. Per the design doc:
   #   S1, S2 -> 4h ;  S3 -> 24h ;  S4, S5 -> 72h
+  # Per-organization overrides via OrganizationSetting#sla_overrides take precedence.
   def triage_sla
+    override = organization&.setting&.sla_overrides&.dig(severity.to_s, "triage_seconds")
+    return override.to_i.seconds if override.is_a?(Integer) && override.positive?
+
     case severity
     when 1, 2 then 4.hours
     when 3    then 24.hours

@@ -6,6 +6,8 @@ module Api
 
       before_action :authenticate_user!
       before_action :set_current
+      before_action :set_paper_trail_whodunnit
+      after_action  :reset_paper_trail_whodunnit
 
       rescue_from Pundit::NotAuthorizedError, with: :forbidden
       rescue_from ActiveRecord::RecordNotFound, with: :not_found
@@ -16,6 +18,14 @@ module Api
 
       def set_current
         Current.user = current_user if current_user
+      end
+
+      def set_paper_trail_whodunnit
+        PaperTrail.request.whodunnit = current_user&.id&.to_s
+      end
+
+      def reset_paper_trail_whodunnit
+        PaperTrail.request.whodunnit = nil
       end
 
       def forbidden(_e)
