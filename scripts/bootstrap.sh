@@ -84,6 +84,10 @@ docker compose run --rm notifier bundle exec rake db:create db:migrate || warn "
 # ---------------------------------------------------------------------------
 log "Starting applications..."
 docker compose up -d --wait core-api sidekiq notifier frontend
+# Karafka consumer process — same image as notifier, started after notifier
+# is healthy so it picks up the freshly-built image. `--wait` is skipped here
+# because Karafka has no HTTP healthcheck.
+docker compose up -d notifier-karafka
 
 # ---------------------------------------------------------------------------
 # Seed demo data

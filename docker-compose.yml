@@ -276,6 +276,36 @@ services:
       retries: 15
 
   # --------------------------------------------------------------------------
+  # notifier-karafka — Karafka consumer process (same image as notifier).
+  # In production-style deploys this runs as a separate Deployment; locally we
+  # split it out so the Sinatra web/WS pod isn't doubling as a Kafka client.
+  # --------------------------------------------------------------------------
+  notifier-karafka:
+    image: ehs-incident-system-notifier
+    command: bundle exec karafka server
+    depends_on:
+      notifier:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      karapace:
+        condition: service_healthy
+    environment:
+      RACK_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-ehs}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_NOTIFIER_DB:-ehs_notifier}
+      KAFKA_BROKERS: kafka:9092
+      KARAPACE_URL: http://karapace:8081
+      SMTP_HOST: mailcatcher
+      SMTP_PORT: "1025"
+      SMTP_FROM: ${SMTP_FROM:-no-reply@ehs.local}
+      JWT_SECRET: ${JWT_SECRET}
+      FIELD_CIPHER_KEY: ${FIELD_CIPHER_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    # No HTTP port — Karafka's own crash-on-error semantics are the liveness signal.
+    healthcheck:
+      disable: true
+
+  # --------------------------------------------------------------------------
   # frontend (Vite dev server)
   # --------------------------------------------------------------------------
   frontend:

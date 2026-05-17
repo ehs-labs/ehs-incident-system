@@ -1,11 +1,20 @@
 class IncidentsConsumer < Karafka::BaseConsumer
   def consume
     messages.each do |message|
-      event = message.payload   # already Avro-decoded by AvroDeserializer
+      event = message.payload   # decoded by AvroDeserializer (Avro or JSON-fallback)
+
+      # Defensive: malformed historical messages can lack event_id (idempotency
+      # key for DeliveryLog). Skip with a warning rather than retry-forever.
+      unless event.is_a?(Hash) && event["event_id"]
+        Karafka.logger.warn("[IncidentsConsumer] skipping malformed message offset=#{message.offset} (keys=#{event.is_a?(Hash) ? event.keys.inspect : event.class})")
+        next
+      end
+
       Handlers::DomainEvent.dispatch(event)
     rescue StandardError => e
-      logger.error("IncidentsConsumer error for #{event&.dig('event_id')}: #{e.class} #{e.message}")
-      raise   # let Karafka apply the configured retry/DLQ strategy
+      Karafka.logger.error("[IncidentsConsumer] error for #{event&.dig('event_id')}: #{e.class}: #{e.message}")
+      Karafka.logger.error(e.backtrace.first(8).join("\n"))
+      raise
     end
   end
 end
