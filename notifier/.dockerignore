@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+.bundle/
+.byebug_history
+.irb_history
+.rspec_status
+.ruby-version
+coverage/
+log/*.log
+tmp/
+node_modules/
+vendor/bundle/
+*.gem
+README.md

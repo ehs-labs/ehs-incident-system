@@ -1,0 +1,12 @@
+.git
+.gitignore
+.dockerignore
+node_modules/
+dist/
+.vite/
+coverage/
+playwright-report/
+test-results/
+.eslintcache
+*.log
+README.md

@@ -12,7 +12,7 @@ gem "async-websocket"
 
 # ----- Kafka + Avro ----------------------------------------------------------
 gem "karafka"
-gem "avro-turf"
+gem "avro_turf"
 
 # ----- Persistence -----------------------------------------------------------
 gem "pg"

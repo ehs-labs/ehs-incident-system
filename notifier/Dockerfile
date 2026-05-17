@@ -6,8 +6,9 @@
 
 FROM ruby:3.3.0-slim AS build
 
-ENV BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
+# Gemfile.lock is generated inside the build until we commit one; once
+# committed, switch BUNDLE_DEPLOYMENT to "1" for reproducible CI builds.
+ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test"
 
 RUN apt-get update -qq && \
@@ -15,10 +16,14 @@ RUN apt-get update -qq && \
       build-essential curl git libpq-dev libyaml-dev pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
+# Shared local-path gem (outside this service's context) — exposed by the
+# compose / buildx `shared-envelope` named build context.
+COPY --from=shared-envelope . /shared/envelope
+
 WORKDIR /app
 
-COPY Gemfile Gemfile.lock ./
-COPY ../shared/envelope /shared/envelope
+# Trailing * makes Gemfile.lock optional until committed.
+COPY Gemfile* ./
 
 RUN bundle install && \
     rm -rf "${BUNDLE_PATH}/ruby/*/cache"
@@ -28,8 +33,7 @@ COPY . .
 # ---------- Final stage ------------------------------------------------------
 FROM ruby:3.3.0-slim AS final
 
-ENV BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
+ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
     RACK_ENV="production"
 

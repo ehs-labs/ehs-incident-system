@@ -170,6 +170,8 @@ services:
     build:
       context: ./core-api
       dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
     depends_on:
       postgres:
         condition: service_healthy
@@ -217,6 +219,8 @@ services:
     build:
       context: ./core-api
       dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
       core-api:
@@ -237,6 +241,8 @@ services:
     build:
       context: ./notifier
       dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
     depends_on:
       postgres:
         condition: service_healthy

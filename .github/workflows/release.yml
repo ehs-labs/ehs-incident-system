@@ -50,6 +50,8 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.service }}
+          build-contexts: |
+            shared-envelope=shared/envelope
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

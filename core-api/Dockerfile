@@ -8,8 +8,9 @@
 # ---------- Build stage ------------------------------------------------------
 FROM ruby:3.3.0-slim AS build
 
-ENV BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
+# Gemfile.lock is generated inside the build until we commit one; once
+# committed, switch BUNDLE_DEPLOYMENT to "1" for reproducible CI builds.
+ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
     RAILS_ENV="production"
 
@@ -23,11 +24,15 @@ RUN apt-get update -qq && \
       pkg-config && \
     rm -rf /var/lib/apt/lists/*
 
+# The shared local-path gem lives outside this service's build context. Compose
+# (and `docker buildx`) expose it via the `shared-envelope` named build context.
+# COPY shared first so the path that the Gemfile references resolves.
+COPY --from=shared-envelope . /shared/envelope
+
 WORKDIR /app
 
-# Install gems (cached layer)
-COPY Gemfile Gemfile.lock ./
-COPY ../shared/envelope /shared/envelope
+# Glob trailing * makes Gemfile.lock optional (it's gitignored until first build).
+COPY Gemfile* ./
 
 RUN bundle install && \
     rm -rf "${BUNDLE_PATH}/ruby/*/cache" && \
@@ -41,8 +46,7 @@ RUN bundle exec bootsnap precompile --gemfile app/ lib/
 # ---------- Final stage ------------------------------------------------------
 FROM ruby:3.3.0-slim AS final
 
-ENV BUNDLE_DEPLOYMENT="1" \
-    BUNDLE_PATH="/usr/local/bundle" \
+ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
     RAILS_ENV="production" \
     RAILS_LOG_TO_STDOUT="1" \

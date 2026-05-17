@@ -303,6 +303,10 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.service }}
+          # core-api and notifier reference the shared local-path gem
+          # via an additional build context. Harmless to set for frontend.
+          build-contexts: |
+            shared-envelope=shared/envelope
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/ehs-${{ matrix.service }}:latest

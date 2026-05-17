@@ -25,7 +25,7 @@ gem "sidekiq-cron"
 
 # ----- Kafka + Avro ----------------------------------------------------------
 gem "rdkafka"
-gem "avro-turf"
+gem "avro_turf"
 
 # ----- Search, pagination, serialization -------------------------------------
 gem "pg_search"
