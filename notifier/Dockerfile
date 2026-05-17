@@ -20,6 +20,9 @@ RUN apt-get update -qq && \
 # compose / buildx `shared-envelope` named build context.
 COPY --from=shared-envelope . /shared/envelope
 
+# Avro schemas — Karafka deserializer reads them at /schemas/events/v1/.
+COPY --from=schemas . /schemas/events/v1
+
 WORKDIR /app
 
 # Trailing * makes Gemfile.lock optional until committed.
@@ -47,6 +50,7 @@ RUN apt-get update -qq && \
 WORKDIR /app
 COPY --from=build --chown=ruby:ruby /usr/local/bundle /usr/local/bundle
 COPY --from=build --chown=ruby:ruby /shared /shared
+COPY --from=build --chown=ruby:ruby /schemas /schemas
 COPY --from=build --chown=ruby:ruby /app /app
 
 USER ruby:ruby

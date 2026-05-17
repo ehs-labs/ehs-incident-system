@@ -40,5 +40,15 @@ module CoreApi
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Sidekiq backs every ActiveJob queue.
+    config.active_job.queue_adapter = :sidekiq
+
+    # Rails 7.2 schema.rb handles `enable_extension`, GIN indexes, and the
+    # tsvector column type fine — no need for the heavier SQL-format dump.
+
+    # Cookies need to be enabled for the refresh-token cookie despite api_only.
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::Session::CookieStore, key: "_ehs_refresh"
   end
 end

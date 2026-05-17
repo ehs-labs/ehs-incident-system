@@ -29,6 +29,10 @@ RUN apt-get update -qq && \
 # COPY shared first so the path that the Gemfile references resolves.
 COPY --from=shared-envelope . /shared/envelope
 
+# Avro schemas live in a sibling dir; copy via a named build context too so
+# AvroTurf can read them at /schemas/events/v1/*.avsc.
+COPY --from=schemas . /schemas/events/v1
+
 WORKDIR /app
 
 # Glob trailing * makes Gemfile.lock optional (it's gitignored until first build).
@@ -72,6 +76,7 @@ ENV LD_PRELOAD=/usr/local/lib/libjemalloc.so.2
 WORKDIR /app
 COPY --from=build --chown=ruby:ruby /usr/local/bundle /usr/local/bundle
 COPY --from=build --chown=ruby:ruby /shared /shared
+COPY --from=build --chown=ruby:ruby /schemas /schemas
 COPY --from=build --chown=ruby:ruby /app /app
 
 USER ruby:ruby

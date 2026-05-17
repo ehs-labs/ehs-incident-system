@@ -172,6 +172,7 @@ services:
       dockerfile: Dockerfile
       additional_contexts:
         shared-envelope: ./shared/envelope
+        schemas: ./schemas/events/v1
     depends_on:
       postgres:
         condition: service_healthy
@@ -246,6 +247,7 @@ services:
       dockerfile: Dockerfile
       additional_contexts:
         shared-envelope: ./shared/envelope
+        schemas: ./schemas/events/v1
     depends_on:
       postgres:
         condition: service_healthy

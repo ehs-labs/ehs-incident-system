@@ -23,6 +23,8 @@ Devise.setup do |config|
   config.password_length       = 8..128
   config.email_regexp          = /\A[^@\s]+@[^@\s]+\z/
 
+  config.navigational_formats  = []   # API-only — never redirect anywhere
+
   # ----- Lockable ----------------------------------------------------------
   config.lock_strategy     = :failed_attempts
   config.unlock_strategy   = :time

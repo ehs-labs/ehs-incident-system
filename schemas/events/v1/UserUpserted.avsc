@@ -1,0 +1,87 @@
+{
+  "type": "record",
+  "name": "UserUpserted",
+  "doc": "CDC event for the users.v1 compacted topic. PII fields are pre-encrypted by ehs-envelope (AES-256-GCM). The wire format is 'v<n>:<nonce_b64>:<ciphertext_b64>:<tag_b64>' so consumers can detect the cipher version.",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "string",
+      "doc": "Compaction key on the topic"
+    },
+    {
+      "name": "org_id",
+      "type": "string"
+    },
+    {
+      "name": "role",
+      "type": {
+        "type": "enum",
+        "name": "UserRole",
+        "symbols": [
+          "WORKER",
+          "INVESTIGATOR",
+          "ADMIN"
+        ]
+      }
+    },
+    {
+      "name": "name_enc",
+      "type": "string",
+      "doc": "Encrypted display name"
+    },
+    {
+      "name": "email_enc",
+      "type": "string",
+      "doc": "Encrypted email"
+    },
+    {
+      "name": "telegram_chat_id_enc",
+      "type": [
+        "null",
+        "string"
+      ],
+      "default": null,
+      "doc": "Encrypted Telegram chat id, or null if not linked"
+    },
+    {
+      "name": "prefs",
+      "type": {
+        "type": "map",
+        "values": {
+          "type": "record",
+          "name": "ChannelPreference",
+          "fields": [
+            {
+              "name": "email",
+              "type": "boolean"
+            },
+            {
+              "name": "telegram",
+              "type": "boolean"
+            },
+            {
+              "name": "in_app",
+              "type": "boolean"
+            }
+          ]
+        }
+      },
+      "default": {
+      },
+      "doc": "Map of event_type -> per-channel preferences"
+    },
+    {
+      "name": "deleted",
+      "type": "boolean",
+      "default": false,
+      "doc": "Tombstone flag — true means soft-deleted; consumer should drop from mirror"
+    },
+    {
+      "name": "updated_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    }
+  ]
+}

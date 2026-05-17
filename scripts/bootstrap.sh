@@ -36,6 +36,16 @@ fi
 log "Starting infrastructure (postgres, redis, kafka, karapace, minio, mailcatcher)..."
 docker compose up -d --wait postgres redis kafka karapace kafka-ui minio mailcatcher
 
+log "Ensuring Kafka topics exist..."
+for topic in incidents.v1 corrective_actions.v1 users.v1 system.v1; do
+  docker compose exec -T kafka kafka-topics.sh \
+    --bootstrap-server localhost:9092 \
+    --create --if-not-exists \
+    --topic "$topic" --partitions 3 --replication-factor 1 >/dev/null 2>&1 \
+    && log "  topic ready: $topic" \
+    || warn "  topic creation failed: $topic (it may already exist)"
+done
+
 log "Ensuring MinIO bucket exists..."
 docker compose up minio-init
 
@@ -45,6 +55,8 @@ docker compose up minio-init
 log "Registering Avro schemas..."
 if [[ -d schemas/events/v1 ]] && compgen -G "schemas/events/v1/*.avsc" >/dev/null; then
   for schema in schemas/events/v1/*.avsc; do
+    # Subject == record name (PascalCase) — matches Confluent convention for
+    # `<schema_name>-value` subjects used by avro-turf in record-name mode.
     subject="$(basename "$schema" .avsc)-value"
     payload=$(jq -Rs --arg t AVRO '{schema: ., schemaType: $t}' < "$schema")
     curl -fsS -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \

@@ -1,0 +1,78 @@
+{
+  "type": "record",
+  "name": "CorrectiveActionAssigned",
+  "doc": "Emitted when a corrective action is created and assigned to an owner.",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string"
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "default": "CorrectiveActionAssigned"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1
+    },
+    {
+      "name": "occurred_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "org_id",
+      "type": "string"
+    },
+    {
+      "name": "actor_id",
+      "type": "string"
+    },
+    {
+      "name": "subject",
+      "type": {
+        "type": "record",
+        "name": "CorrectiveActionAssignedSubject",
+        "fields": [
+          {
+            "name": "action_id",
+            "type": "string"
+          },
+          {
+            "name": "incident_id",
+            "type": "string"
+          },
+          {
+            "name": "assignee_id",
+            "type": "string"
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "due_date",
+            "type": {
+              "type": "int",
+              "logicalType": "date"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "recipient_user_ids",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [
+
+      ]
+    }
+  ]
+}
