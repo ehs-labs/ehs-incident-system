@@ -21,6 +21,11 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "happy-dom",
+    // Vitest only runs unit specs. Playwright e2e specs live under tests/e2e/
+    // and use `@playwright/test`'s test runner — exclude them here so vitest
+    // doesn't try to evaluate them.
+    include: ["tests/unit/**/*.spec.ts", "src/**/*.spec.ts"],
+    exclude: ["tests/e2e/**", "node_modules/**"],
     coverage: {
       reporter: ["text", "html"]
     }

@@ -1,69 +1,176 @@
 <script setup lang="ts">
-import { NLayout, NLayoutSider, NLayoutHeader, NMenu, NBadge, NIcon } from "naive-ui";
+import {
+  NLayout,
+  NLayoutSider,
+  NLayoutHeader,
+  NLayoutContent,
+  NMenu,
+  NBadge,
+  NButton,
+  NDropdown,
+  NSpace,
+  NSelect,
+  type MenuOption
+} from "naive-ui";
 import { computed, h } from "vue";
-import { RouterLink, useRouter } from "vue-router";
+import { RouterLink, useRouter, useRoute } from "vue-router";
+// (NIcon and friends not used yet; kept lean.)
 import { useAuthStore } from "@/stores/auth";
-import { useNotificationStore, useNotifications } from "@/composables/useNotifications";
+import {
+  useNotificationStore,
+  useNotifications
+} from "@/composables/useNotifications";
 
 useNotifications(); // establishes the WS connection for the duration of the shell
 
 const auth = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 const notifications = useNotificationStore();
 
-const menuOptions = computed(() => {
-  const base = [
-    { label: "Dashboard",  key: "/dashboard",        href: "/dashboard" },
-    { label: "Incidents",  key: "/incidents",        href: "/incidents" },
-    { label: "Actions",    key: "/actions",          href: "/actions" },
-    { label: "Inbox",      key: "/inbox",            href: "/inbox" }
+const sideMenu = computed<MenuOption[]>(() => {
+  const base: { label: string; key: string }[] = [
+    { label: "Dashboard", key: "/dashboard" },
+    { label: "Incidents", key: "/incidents" },
+    { label: "My Actions", key: "/actions" },
+    { label: "Inbox", key: "/inbox" }
   ];
   if (auth.user?.role === "admin") {
     base.push(
-      { label: "Users",    key: "/admin/users",      href: "/admin/users" },
-      { label: "Sites",    key: "/admin/sites",      href: "/admin/sites" },
-      { label: "Settings", key: "/admin/settings",   href: "/admin/settings" }
+      { label: "Admin · Users", key: "/admin/users" },
+      { label: "Admin · Sites", key: "/admin/sites" },
+      { label: "Admin · Settings", key: "/admin/settings" }
     );
   }
   return base.map((b) => ({
-    label: () => h(RouterLink, { to: b.href }, () => b.label),
-    key: b.key
+    key: b.key,
+    label: () =>
+      h(
+        RouterLink,
+        {
+          to: b.key,
+          style: "text-decoration: none; color: inherit; display: block"
+        },
+        () => {
+          if (b.key === "/inbox" && notifications.unreadCount > 0) {
+            return h("span", { style: "display:flex; align-items:center; gap:8px" }, [
+              b.label,
+              h(NBadge, { value: notifications.unreadCount, max: 99 })
+            ]);
+          }
+          return b.label;
+        }
+      )
   }));
 });
 
-async function signOut() {
-  await auth.logout();
-  router.push("/login");
+const activeKey = computed(() => {
+  const m = sideMenu.value
+    .map((o) => o.key as string)
+    .filter((k) => route.path.startsWith(k))
+    .sort((a, b) => b.length - a.length);
+  return m[0] ?? "/dashboard";
+});
+
+const userMenu = computed(() => [
+  { key: "profile", label: `${auth.user?.email} (${auth.user?.role})` },
+  { type: "divider", key: "d1" },
+  { key: "logout", label: "Sign out" }
+]);
+
+const siteOptions = computed(() =>
+  auth.sites.map((s) => ({ label: s.name, value: String(s.id) }))
+);
+
+async function onUserSelect(key: string) {
+  if (key === "logout") {
+    await auth.logout();
+    router.push("/login");
+  }
 }
 </script>
 
 <template>
-  <n-layout has-sider style="height: 100vh">
+  <n-layout
+    has-sider
+    style="height: 100vh"
+  >
     <n-layout-sider
       bordered
       width="220"
+      collapse-mode="width"
+      :collapsed-width="0"
+      show-trigger="bar"
       content-style="padding: 16px"
     >
-      <h2 style="margin: 0 0 16px 0">EHS</h2>
-      <n-menu :options="menuOptions" />
+      <h2 style="margin: 0 0 16px 0; font-size: 18px">
+        EHS Incidents
+      </h2>
+      <n-menu
+        :options="sideMenu"
+        :value="activeKey"
+      />
     </n-layout-sider>
 
     <n-layout>
-      <n-layout-header bordered style="display: flex; align-items: center; padding: 12px 24px; justify-content: space-between">
-        <span>{{ auth.user?.name }} · {{ auth.user?.role }}</span>
-        <div style="display: flex; gap: 16px; align-items: center">
-          <RouterLink to="/inbox">
-            <n-badge :value="notifications.unreadCount" :show="notifications.unreadCount > 0">
-              <span>🔔</span>
+      <n-layout-header
+        bordered
+        style="display:flex; align-items:center; justify-content:space-between; padding: 8px 24px; gap: 16px"
+      >
+        <n-space align="center">
+          <strong style="margin-right: 8px">{{ auth.organization?.name ?? "EHS" }}</strong>
+          <n-select
+            v-if="auth.sites.length > 1"
+            :options="siteOptions"
+            size="small"
+            placeholder="All sites"
+            style="width: 200px"
+            clearable
+          />
+        </n-space>
+
+        <n-space
+          align="center"
+          :size="16"
+        >
+          <RouterLink
+            to="/inbox"
+            style="text-decoration: none"
+          >
+            <n-badge
+              :value="notifications.unreadCount"
+              :show="notifications.unreadCount > 0"
+              :max="99"
+            >
+              <n-button quaternary>
+                Inbox
+              </n-button>
             </n-badge>
           </RouterLink>
-          <button @click="signOut">Sign out</button>
-        </div>
+          <n-dropdown
+            trigger="click"
+            :options="userMenu"
+            @select="onUserSelect"
+          >
+            <n-button quaternary>
+              {{ auth.user?.email }} · {{ auth.user?.role }}
+            </n-button>
+          </n-dropdown>
+        </n-space>
       </n-layout-header>
 
-      <n-layout content-style="padding: 24px">
+      <n-layout-content content-style="padding: 24px; min-height: calc(100vh - 56px)">
         <router-view />
-      </n-layout>
+      </n-layout-content>
     </n-layout>
   </n-layout>
 </template>
+
+<style scoped>
+@media (max-width: 600px) {
+  :deep(.n-layout-header) {
+    padding: 8px 12px !important;
+    flex-wrap: wrap;
+  }
+}
+</style>
