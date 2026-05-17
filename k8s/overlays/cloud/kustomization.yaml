@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  # Secrets are supplied out-of-band (External Secrets Operator, sealed-secrets,
+  # or a `kubectl create secret` step in your CD pipeline). Do NOT commit real
+  # cloud secrets to git.
+
+patches:
+  - target: { kind: Ingress, name: ehs }
+    patch: |
+      - op: add
+        path: /metadata/annotations/cert-manager.io~1cluster-issuer
+        value: letsencrypt-prod
+      - op: replace
+        path: /spec/rules/0/host
+        value: app.ehs.example.com
+      - op: add
+        path: /spec/tls
+        value:
+          - hosts: [app.ehs.example.com]
+            secretName: ehs-tls
+
+images:
+  - name: ghcr.io/stitch80/ehs-core-api
+    newTag: latest
+  - name: ghcr.io/stitch80/ehs-notifier
+    newTag: latest
+  - name: ghcr.io/stitch80/ehs-frontend
+    newTag: latest

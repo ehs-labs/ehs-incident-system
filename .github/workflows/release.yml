@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: Deploy mode
+        type: choice
+        options: [direct-kubectl, gitops-argocd, build-only]
+        default: build-only
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build & publish images with a semver tag
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build & push (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [core-api, notifier, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/ehs-${{ matrix.service }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch
+            type=sha,format=short
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=release-${{ matrix.service }}
+          cache-to: type=gha,scope=release-${{ matrix.service }},mode=max
+
+  # ---------------------------------------------------------------------------
+  # Path A — Direct kubectl deploy
+  # ---------------------------------------------------------------------------
+  deploy-direct:
+    name: Deploy (direct kubectl)
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event.inputs.deploy_mode == 'direct-kubectl' || (startsWith(github.ref, 'refs/tags/v') && vars.DEFAULT_DEPLOY_MODE == 'direct-kubectl') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.30.0"
+
+      - name: Authenticate to cluster
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Set image tags in overlay
+        working-directory: k8s/overlays/cloud
+        run: |
+          kustomize edit set image \
+            ghcr.io/${{ github.repository_owner }}/ehs-core-api=ghcr.io/${{ github.repository_owner }}/ehs-core-api:${GITHUB_REF_NAME} \
+            ghcr.io/${{ github.repository_owner }}/ehs-notifier=ghcr.io/${{ github.repository_owner }}/ehs-notifier:${GITHUB_REF_NAME} \
+            ghcr.io/${{ github.repository_owner }}/ehs-frontend=ghcr.io/${{ github.repository_owner }}/ehs-frontend:${GITHUB_REF_NAME}
+
+      - name: Apply manifests
+        run: kustomize build k8s/overlays/cloud | kubectl apply -f -
+
+      - name: Wait for migration jobs
+        run: |
+          kubectl -n ehs wait --for=condition=Complete job/db-migrate-core-api --timeout=10m
+          kubectl -n ehs wait --for=condition=Complete job/db-migrate-notifier --timeout=10m
+
+      - name: Wait for rollouts
+        run: |
+          kubectl -n ehs rollout status deployment/core-api  --timeout=10m
+          kubectl -n ehs rollout status deployment/notifier  --timeout=10m
+          kubectl -n ehs rollout status deployment/frontend  --timeout=10m
+
+      - name: Smoke test
+        run: |
+          BASE_URL="${{ vars.PROD_BASE_URL }}"
+          for path in /healthz /api/v1/healthz; do
+            curl -fsSL "$BASE_URL$path" || { echo "::error::Smoke test failed: $BASE_URL$path"; exit 1; }
+          done
+
+  # ---------------------------------------------------------------------------
+  # Path B — GitOps via ArgoCD (commit new image tag to the manifest repo;
+  # ArgoCD watches and syncs)
+  # ---------------------------------------------------------------------------
+  deploy-gitops:
+    name: Deploy (GitOps via ArgoCD)
+    runs-on: ubuntu-latest
+    needs: build
+    if: ${{ github.event.inputs.deploy_mode == 'gitops-argocd' || (startsWith(github.ref, 'refs/tags/v') && vars.DEFAULT_DEPLOY_MODE == 'gitops-argocd') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITOPS_PAT }}
+
+      - name: Bump image tags in overlay
+        working-directory: k8s/overlays/cloud
+        run: |
+          kustomize edit set image \
+            ghcr.io/${{ github.repository_owner }}/ehs-core-api=ghcr.io/${{ github.repository_owner }}/ehs-core-api:${GITHUB_REF_NAME} \
+            ghcr.io/${{ github.repository_owner }}/ehs-notifier=ghcr.io/${{ github.repository_owner }}/ehs-notifier:${GITHUB_REF_NAME} \
+            ghcr.io/${{ github.repository_owner }}/ehs-frontend=ghcr.io/${{ github.repository_owner }}/ehs-frontend:${GITHUB_REF_NAME}
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/overlays/cloud/kustomization.yaml
+          git commit -m "chore(release): bump images to ${GITHUB_REF_NAME} [skip ci]" || echo "No changes"
+          git push
+
+      # ArgoCD picks it up from here. Optional: poll ArgoCD API for Healthy state.

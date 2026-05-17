@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailcatcher
+  namespace: ehs
+spec:
+  selector: { app: mailcatcher }
+  ports:
+    - { name: smtp, port: 1025, targetPort: 1025 }
+    - { name: web,  port: 1080, targetPort: 1080 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailcatcher
+  namespace: ehs
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: mailcatcher } }
+  template:
+    metadata: { labels: { app: mailcatcher } }
+    spec:
+      containers:
+        - name: mailcatcher
+          image: dockage/mailcatcher:latest
+          ports:
+            - { containerPort: 1025 }
+            - { containerPort: 1080 }

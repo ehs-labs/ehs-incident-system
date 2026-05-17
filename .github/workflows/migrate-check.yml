@@ -1,0 +1,87 @@
+name: Migration safety
+
+on:
+  pull_request:
+    paths:
+      - "core-api/db/migrate/**"
+      - "core-api/db/schema.rb"
+      - "notifier/db/migrations/**"
+
+jobs:
+  core-api-migrations:
+    name: core-api migrations (up + down)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ehs
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: ehs_app_migrate
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://ehs:testpassword@localhost:5432/ehs_app_migrate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          working-directory: core-api
+          bundler-cache: true
+
+      - name: strong_migrations lint
+        working-directory: core-api
+        run: bundle exec rake strong_migrations:lint
+
+      - name: Migrate up
+        working-directory: core-api
+        run: bundle exec rails db:create db:migrate
+
+      - name: Migrate down to baseline
+        working-directory: core-api
+        run: bundle exec rails db:migrate VERSION=0
+
+      - name: Schema.rb is committed and in sync
+        working-directory: core-api
+        run: |
+          bundle exec rails db:migrate
+          git diff --exit-code db/schema.rb || {
+            echo "::error::db/schema.rb is out of date. Run 'bundle exec rails db:migrate' locally and commit."
+            exit 1
+          }
+
+  notifier-migrations:
+    name: notifier migrations (up + down)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ehs
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: ehs_notifier_migrate
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+    env:
+      DATABASE_URL: postgres://ehs:testpassword@localhost:5432/ehs_notifier_migrate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          working-directory: notifier
+          bundler-cache: true
+
+      - name: Migrate up
+        working-directory: notifier
+        run: bundle exec rake db:create db:migrate
+
+      - name: Migrate down to baseline
+        working-directory: notifier
+        run: bundle exec rake "db:migrate[0]"

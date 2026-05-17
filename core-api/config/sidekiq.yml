@@ -1,0 +1,28 @@
+---
+:concurrency: 5
+:timeout: 25
+
+:queues:
+  - [critical, 3]
+  - [default, 2]
+  - [outbox, 2]
+  - [low, 1]
+
+# ----- Scheduled (cron) jobs -------------------------------------------------
+:schedule:
+  outbox_shipper:
+    cron: "*/5 * * * * *"     # every 5 seconds — ships pending outbox events
+    class: OutboxShipperJob
+    queue: outbox
+
+  sla_breach_scan:
+    cron: "0 * * * *"          # hourly
+    class: SlaBreachScanJob
+
+  overdue_action_scan:
+    cron: "0 8 * * *"          # daily 08:00
+    class: OverdueActionScanJob
+
+  daily_digest:
+    cron: "0 7 * * *"          # daily 07:00
+    class: DailyDigestJob

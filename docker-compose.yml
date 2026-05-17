@@ -1,0 +1,277 @@
+# ============================================================================
+# EHS Incident System — local stack via Docker Compose
+#
+# Layered with docker-compose.dev.yml (auto-merged) which adds source mounts
+# and hot-reload commands suitable for development.
+#
+# Usage:
+#   docker compose up -d --wait        # full stack
+#   docker compose up -d postgres redis kafka karapace  # infra only
+# ============================================================================
+
+x-postgres-env: &postgres-env
+  POSTGRES_USER: ${POSTGRES_USER:-ehs}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpassword}
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL — one server, two logical databases (created by init script)
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      <<: *postgres-env
+      POSTGRES_DB: ${POSTGRES_APP_DB:-ehs_app}
+      POSTGRES_MULTIPLE_DATABASES: "${POSTGRES_APP_DB:-ehs_app},${POSTGRES_NOTIFIER_DB:-ehs_notifier}"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/postgres-init.sh:/docker-entrypoint-initdb.d/postgres-init.sh:ro
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  # Redis — Sidekiq's queue / scheduler / retry / dead set storage
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  # Kafka in KRaft mode (no Zookeeper)
+  # --------------------------------------------------------------------------
+  kafka:
+    image: bitnami/kafka:3.7
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "false"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    ports: ["9092:9092"]
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  # Karapace — open-source schema registry (Avro)
+  # --------------------------------------------------------------------------
+  karapace:
+    image: ghcr.io/aiven/karapace:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KARAPACE_BOOTSTRAP_URI: kafka:9092
+      KARAPACE_HOST: 0.0.0.0
+      KARAPACE_PORT: 8081
+      KARAPACE_REGISTRY_HOST: 0.0.0.0
+      KARAPACE_REGISTRY_PORT: 8081
+      KARAPACE_COMPATIBILITY: BACKWARD
+    ports: ["8081:8081"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:8081/subjects || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  # Kafka UI — inspect topics & messages (Avro-aware via Karapace)
+  # --------------------------------------------------------------------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    depends_on:
+      kafka:
+        condition: service_healthy
+      karapace:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_SCHEMAREGISTRY: http://karapace:8081
+    ports: ["8080:8080"]
+
+  # --------------------------------------------------------------------------
+  # MinIO — S3-compatible blob store for ActiveStorage
+  # --------------------------------------------------------------------------
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Creates the bucket on startup (run-once)
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY_ID:-minioadmin} ${S3_SECRET_ACCESS_KEY:-minioadmin} &&
+      (mc mb -p local/${S3_BUCKET:-ehs-attachments} || true) &&
+      mc anonymous set download local/${S3_BUCKET:-ehs-attachments}
+      "
+    restart: "no"
+
+  # --------------------------------------------------------------------------
+  # MailCatcher — local SMTP sink + web UI for inspecting emails
+  # --------------------------------------------------------------------------
+  mailcatcher:
+    image: dockage/mailcatcher:latest
+    ports:
+      - "1080:1080" # web UI
+      - "1025:1025" # SMTP
+
+  # --------------------------------------------------------------------------
+  # core-api (Rails)
+  # --------------------------------------------------------------------------
+  core-api:
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      karapace:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      mailcatcher:
+        condition: service_started
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-ehs}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_APP_DB:-ehs_app}
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BROKERS: kafka:9092
+      KARAPACE_URL: http://karapace:8081
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-ehs-attachments}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+      SMTP_HOST: mailcatcher
+      SMTP_PORT: "1025"
+      SMTP_FROM: ${SMTP_FROM:-no-reply@ehs.local}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_DENYLIST_SECRET: ${JWT_DENYLIST_SECRET}
+      FIELD_CIPHER_KEY: ${FIELD_CIPHER_KEY}
+      SIGNUP_ENABLED: ${SIGNUP_ENABLED:-true}
+      STRICT_MIGRATION_CHECK: ${STRICT_MIGRATION_CHECK:-false}
+      APP_HOST: ${APP_HOST:-http://localhost:5173}
+    ports: ["3000:3000"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  # --------------------------------------------------------------------------
+  # sidekiq — same image as core-api, different command
+  # --------------------------------------------------------------------------
+  sidekiq:
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    depends_on:
+      core-api:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-ehs}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_APP_DB:-ehs_app}
+      REDIS_URL: redis://redis:6379/0
+      KAFKA_BROKERS: kafka:9092
+      KARAPACE_URL: http://karapace:8081
+      JWT_SECRET: ${JWT_SECRET}
+      FIELD_CIPHER_KEY: ${FIELD_CIPHER_KEY}
+
+  # --------------------------------------------------------------------------
+  # notifier (Sinatra)
+  # --------------------------------------------------------------------------
+  notifier:
+    build:
+      context: ./notifier
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      karapace:
+        condition: service_healthy
+      mailcatcher:
+        condition: service_started
+    environment:
+      RACK_ENV: development
+      DATABASE_URL: postgres://${POSTGRES_USER:-ehs}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_NOTIFIER_DB:-ehs_notifier}
+      KAFKA_BROKERS: kafka:9092
+      KARAPACE_URL: http://karapace:8081
+      SMTP_HOST: mailcatcher
+      SMTP_PORT: "1025"
+      SMTP_FROM: ${SMTP_FROM:-no-reply@ehs.local}
+      JWT_SECRET: ${JWT_SECRET}
+      FIELD_CIPHER_KEY: ${FIELD_CIPHER_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    ports: ["4000:4000"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4000/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  # --------------------------------------------------------------------------
+  # frontend (Vite dev server)
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    depends_on:
+      core-api:
+        condition: service_healthy
+    environment:
+      VITE_API_BASE_URL: http://localhost:3000/api/v1
+      VITE_WS_URL: ws://localhost:4000/ws
+    ports: ["5173:5173"]
+
+volumes:
+  postgres-data:
+  redis-data:
+  kafka-data:
+  minio-data:

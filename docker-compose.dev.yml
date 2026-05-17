@@ -1,0 +1,40 @@
+# ============================================================================
+# Development overrides — auto-merged with docker-compose.yml when both are
+# present (default behavior of `docker compose up`).
+#
+# Adds source-code mounts and hot-reload commands.
+# ============================================================================
+
+services:
+  core-api:
+    command: bin/rails server -b 0.0.0.0 -p 3000
+    volumes:
+      - ./core-api:/app
+      - ./shared/envelope:/shared/envelope
+      - bundle-core-api:/usr/local/bundle
+    environment:
+      WEBPACKER_DEV_SERVER_PUBLIC: localhost:5173
+
+  sidekiq:
+    volumes:
+      - ./core-api:/app
+      - ./shared/envelope:/shared/envelope
+      - bundle-core-api:/usr/local/bundle
+
+  notifier:
+    command: bundle exec falcon serve --bind http://0.0.0.0:4000
+    volumes:
+      - ./notifier:/app
+      - ./shared/envelope:/shared/envelope
+      - bundle-notifier:/usr/local/bundle
+
+  frontend:
+    command: pnpm run dev --host 0.0.0.0 --port 5173
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+
+volumes:
+  bundle-core-api:
+  bundle-notifier:
+  frontend-node-modules:

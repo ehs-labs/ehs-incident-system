@@ -1,0 +1,58 @@
+source "https://rubygems.org"
+
+ruby "3.3.0"
+
+# ----- Web framework + async runtime -----------------------------------------
+gem "sinatra", "~> 4.0"
+gem "sinatra-contrib"
+gem "rack", "~> 3.0"
+gem "puma"          # fallback HTTP for the /healthz endpoint
+gem "falcon"        # fiber-based async server for the WebSocket endpoint
+gem "async-websocket"
+
+# ----- Kafka + Avro ----------------------------------------------------------
+gem "karafka"
+gem "avro-turf"
+
+# ----- Persistence -----------------------------------------------------------
+gem "pg"
+gem "sequel"
+gem "sequel-postgres-pr", require: false   # dev-only fallback if libpq missing
+
+# ----- Email / Telegram ------------------------------------------------------
+gem "mail"
+gem "telegram-bot-ruby"
+
+# ----- Auth (JWT verification only — issuance lives in core-api) -------------
+gem "jwt"
+
+# ----- Shared field-level cipher ---------------------------------------------
+gem "ehs-envelope", path: "../shared/envelope"
+
+# ----- Operational signals ---------------------------------------------------
+gem "dotenv"
+gem "lograge-sql", require: false
+gem "prometheus_exporter"
+gem "opentelemetry-sdk"
+
+# ----- IDs -------------------------------------------------------------------
+gem "ulid-ruby", require: "ulid"
+
+# ----- Misc ------------------------------------------------------------------
+gem "rake"
+
+group :development, :test do
+  gem "rspec"
+  gem "karafka-testing"
+  gem "factory_bot"
+  gem "faker"
+  gem "byebug"
+  gem "rubocop"
+end
+
+group :test do
+  gem "rack-test"
+  gem "webmock"
+  gem "vcr"
+  gem "simplecov", require: false
+end

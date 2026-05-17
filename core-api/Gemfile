@@ -1,0 +1,77 @@
+source "https://rubygems.org"
+
+ruby "3.3.0"
+
+# ----- Core ------------------------------------------------------------------
+gem "rails", "~> 7.2"
+gem "pg",    "~> 1.5"
+gem "puma",  "~> 6.4"
+gem "bootsnap", require: false
+gem "tzinfo-data", platforms: %i[mingw mswin x64_mingw jruby]
+
+# ----- Auth ------------------------------------------------------------------
+gem "devise"
+gem "devise-jwt"
+gem "devise_invitable"
+
+# ----- Authorization & state machines ----------------------------------------
+gem "pundit"
+gem "aasm"
+gem "paper_trail"
+
+# ----- Background jobs -------------------------------------------------------
+gem "sidekiq"
+gem "sidekiq-cron"
+
+# ----- Kafka + Avro ----------------------------------------------------------
+gem "rdkafka"
+gem "avro-turf"
+
+# ----- Search, pagination, serialization -------------------------------------
+gem "pg_search"
+gem "kaminari"
+gem "jsonapi-serializer"
+
+# ----- File storage ----------------------------------------------------------
+gem "aws-sdk-s3", require: false   # ActiveStorage S3 service (MinIO/AWS)
+gem "image_processing"             # ActiveStorage variant processing
+
+# ----- Web layer -------------------------------------------------------------
+gem "rack-cors"
+gem "dotenv-rails"
+
+# ----- Operational signals ---------------------------------------------------
+gem "strong_migrations"
+gem "lograge"
+gem "prometheus_exporter"
+gem "opentelemetry-sdk"
+gem "opentelemetry-instrumentation-rails"
+
+# ----- Shared field-level cipher (local-path gem) ----------------------------
+gem "ehs-envelope", path: "../shared/envelope"
+
+# ----- IDs -------------------------------------------------------------------
+gem "ulid-ruby", require: "ulid"
+
+group :development, :test do
+  gem "rspec-rails"
+  gem "factory_bot_rails"
+  gem "faker"
+  gem "shoulda-matchers"
+  gem "rswag-specs"
+  gem "rswag-api"
+  gem "rswag-ui"
+  gem "byebug"
+  gem "rubocop-rails-omakase", require: false
+end
+
+group :development do
+  gem "listen"
+end
+
+group :test do
+  gem "rails-controller-testing"
+  gem "simplecov", require: false
+  gem "webmock"
+  gem "vcr"
+end

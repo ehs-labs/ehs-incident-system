@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ehs
+  namespace: ehs
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"   # for WebSocket
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.ehs.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: core-api, port: { number: 3000 } } }
+          - path: /sidekiq
+            pathType: Prefix
+            backend: { service: { name: core-api, port: { number: 3000 } } }
+          - path: /api-docs
+            pathType: Prefix
+            backend: { service: { name: core-api, port: { number: 3000 } } }
+          - path: /ws
+            pathType: Prefix
+            backend: { service: { name: notifier, port: { number: 4000 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: frontend, port: { number: 80 } } }

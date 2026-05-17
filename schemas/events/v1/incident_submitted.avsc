@@ -1,0 +1,29 @@
+{
+  "type": "record",
+  "name": "IncidentSubmitted",
+  "namespace": "com.ehs.events.v1",
+  "doc": "Emitted when a worker submits a new incident report.",
+  "fields": [
+    { "name": "event_id",   "type": "string", "doc": "ULID; used for idempotency" },
+    { "name": "event_type", "type": "string", "default": "IncidentSubmitted" },
+    { "name": "version",    "type": "int",    "default": 1 },
+    { "name": "occurred_at","type": { "type": "long", "logicalType": "timestamp-millis" } },
+    { "name": "org_id",     "type": "string" },
+    { "name": "actor_id",   "type": "string", "doc": "User who submitted (typically the reporter)" },
+    {
+      "name": "subject",
+      "type": {
+        "type": "record",
+        "name": "IncidentSubmittedSubject",
+        "fields": [
+          { "name": "incident_id", "type": "string" },
+          { "name": "site_id",     "type": "string" },
+          { "name": "reporter_id", "type": "string" },
+          { "name": "severity",    "type": "int",  "doc": "1=catastrophic .. 5=negligible" },
+          { "name": "summary",     "type": "string" }
+        ]
+      }
+    },
+    { "name": "recipient_user_ids", "type": { "type": "array", "items": "string" }, "default": [] }
+  ]
+}

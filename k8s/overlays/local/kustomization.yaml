@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - dev-secrets.yaml
+
+# Single replicas everywhere for low-resource local clusters
+patches:
+  - target: { kind: Deployment, name: core-api }
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target: { kind: Deployment, name: notifier }
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target: { kind: Deployment, name: frontend }
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+
+# Use a `dev` image tag for locally-built images
+images:
+  - name: ghcr.io/stitch80/ehs-core-api
+    newTag: dev
+  - name: ghcr.io/stitch80/ehs-notifier
+    newTag: dev
+  - name: ghcr.io/stitch80/ehs-frontend
+    newTag: dev

@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ehs
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - postgres.yaml
+  - redis.yaml
+  - kafka.yaml
+  - minio.yaml
+  - mailcatcher.yaml
+  - core-api.yaml
+  - notifier.yaml
+  - frontend.yaml
+  - ingress.yaml
+  - network-policies.yaml
+
+# Secrets are NOT in the base — overlays must supply their own.

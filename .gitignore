@@ -1,0 +1,66 @@
+# === macOS / OS ===
+.DS_Store
+Thumbs.db
+
+# === IDEs / Editors ===
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+*.swp
+*.swo
+*~
+
+# === Secrets / env ===
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# === Ruby / Rails (core-api, notifier, shared/envelope) ===
+*.gem
+*.rbc
+.bundle/
+vendor/bundle/
+log/
+!log/.keep
+log/*.log
+tmp/
+!tmp/.keep
+storage/
+!storage/.keep
+.byebug_history
+.irb_history
+.rspec_status
+coverage/
+spec/examples.txt
+.ruby-version
+.ruby-gemset
+
+# === Node / Frontend ===
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/.eslintcache
+pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+
+# === Docker / K8s ===
+.docker/
+**/local-kubeconfig
+**/*.local.yaml
+
+# === Build / artifacts ===
+*.tsbuildinfo
+.next/
+out/
+build/
+
+# === OpenAPI / generated ===
+frontend/src/api/generated/

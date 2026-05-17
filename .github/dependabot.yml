@@ -1,0 +1,81 @@
+version: 2
+updates:
+  # Ruby gems — core-api
+  - package-ecosystem: bundler
+    directory: "/core-api"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ruby
+
+  # Ruby gems — notifier
+  - package-ecosystem: bundler
+    directory: "/notifier"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ruby
+
+  # Ruby gems — shared envelope gem
+  - package-ecosystem: bundler
+    directory: "/shared/envelope"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ruby
+
+  # npm — frontend
+  - package-ecosystem: npm
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - frontend
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+
+  # Docker images — base images for our Dockerfiles
+  - package-ecosystem: docker
+    directory: "/core-api"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: "/notifier"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker
+    directory: "/frontend"
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+      - docker

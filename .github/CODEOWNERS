@@ -1,0 +1,11 @@
+# Default owner for everything in this repo
+*       @stitch80
+
+# Per-area owners (kept as a single-author placeholder for now — extend when collaborators join)
+/core-api/      @stitch80
+/notifier/      @stitch80
+/frontend/      @stitch80
+/shared/        @stitch80
+/k8s/           @stitch80
+/docs/          @stitch80
+/.github/       @stitch80
