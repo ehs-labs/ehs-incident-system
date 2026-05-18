@@ -20,8 +20,3 @@ class IncidentSerializer
   belongs_to :assignee, serializer: :user, record_type: :user
 end
 
-class SiteSerializer
-  include JSONAPI::Serializer
-  set_type :site
-  attributes :name, :timezone, :organization_id, :created_at
-end
