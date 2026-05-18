@@ -32,15 +32,16 @@ RSpec.describe "Incidents API", type: :request do
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 
       response "200", "OK" do
-        before { create(:incident, organization: org, site: site, reporter: reporter) }
+        let!(:incident_record) { create(:incident, organization: org, site: site, reporter: reporter) }
 
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data["data"]).to be_an(Array)
-          expect(data["data"].size).to be >= 1
+          expect(data["data"].map { |r| r["id"] }).to include(incident_record.id.to_s)
 
-          included_types = data["included"].to_a.map { |r| r["type"] }
-          expect(included_types).to include("site", "user")
+          included = data["included"].to_a
+          expect(included).to include(a_hash_including("type" => "site", "id" => site.id.to_s))
+          expect(included).to include(a_hash_including("type" => "user", "id" => reporter.id.to_s))
         end
       end
 
