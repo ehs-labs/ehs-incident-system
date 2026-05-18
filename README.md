@@ -10,6 +10,12 @@
 
 [![CI](https://github.com/ehs-labs/ehs-incident-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ehs-labs/ehs-incident-system/actions/workflows/ci.yml)
 
+<!--
+  README assets: drop the captured files into docs/assets/ and uncomment.
+  See docs/assets/CAPTURE.md for the recording / screenshotting recipe.
+
+  ![Golden path: worker submits, investigator triages and verifies](docs/assets/golden-path.gif)
+-->
 
 ## What this is
 
@@ -71,6 +77,14 @@ Demo accounts (seeded by `scripts/seed-demo.sh`):
 | `worker@acme.demo` | `password` | Worker |
 
 Or sign up fresh at `/signup` — signup is enabled by default (toggle with `SIGNUP_ENABLED`).
+
+<!--
+  Screenshots: drop dashboard.png and incident-detail.png into docs/assets/ then uncomment.
+
+  | Dashboard | Incident detail |
+  |---|---|
+  | ![Investigator dashboard](docs/assets/dashboard.png) | ![Incident detail page](docs/assets/incident-detail.png) |
+-->
 
 ## Tech stack at a glance
 
