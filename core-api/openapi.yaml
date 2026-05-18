@@ -178,6 +178,298 @@ components:
           additionalProperties:
             type: string
 paths:
+  "/api/v1/admin/settings":
+    get:
+      summary: Return organization SLA settings
+      tags:
+      - admin/settings
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — returns empty overrides initially
+        '403':
+          description: Forbidden — worker cannot access settings
+    patch:
+      summary: Update organization SLA overrides
+      tags:
+      - admin/settings
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: OK — updated overrides flow into Incident#triage_sla
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                setting:
+                  type: object
+                  properties:
+                    sla_overrides:
+                      type: object
+                      additionalProperties:
+                        type: object
+                        properties:
+                          triage_seconds:
+                            type: integer
+        required: true
+  "/api/v1/admin/sites":
+    get:
+      summary: List all sites in the organization
+      tags:
+      - admin/sites
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — admin lists sites
+        '403':
+          description: Forbidden — worker cannot list sites
+    post:
+      summary: Create a new site
+      tags:
+      - admin/sites
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: Created — valid site
+        '422':
+          description: Unprocessable — invalid timezone
+        '403':
+          description: Forbidden — worker cannot create a site
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                site:
+                  type: object
+                  required:
+                  - name
+                  - timezone
+                  properties:
+                    name:
+                      type: string
+                    timezone:
+                      type: string
+        required: true
+  "/api/v1/admin/sites/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    patch:
+      summary: Update a site
+      tags:
+      - admin/sites
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: OK — name updated
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                site:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    timezone:
+                      type: string
+        required: true
+    delete:
+      summary: Destroy a site
+      tags:
+      - admin/sites
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No Content — site deleted
+  "/api/v1/admin/users":
+    get:
+      summary: List users in the organization
+      tags:
+      - admin/users
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: role
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: q
+        in: query
+        schema:
+          type: string
+        required: false
+      responses:
+        '200':
+          description: OK — filtered by q (email/name)
+        '403':
+          description: Forbidden — worker cannot list users
+  "/api/v1/admin/users/invite":
+    post:
+      summary: Invite a new user via email
+      tags:
+      - admin/users
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: Created — invitation email sent and sites assigned
+        '403':
+          description: Forbidden — investigator cannot invite users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: object
+                  required:
+                  - email
+                  - name
+                  - role
+                  properties:
+                    email:
+                      type: string
+                      format: email
+                    name:
+                      type: string
+                    role:
+                      type: string
+                      enum:
+                      - worker
+                      - investigator
+                      - admin
+                    site_ids:
+                      type: array
+                      items:
+                        type: integer
+        required: true
+  "/api/v1/admin/users/{id}/lock":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    post:
+      summary: Lock a user account
+      tags:
+      - admin/users
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — user is locked
+        '403':
+          description: Forbidden — worker cannot lock accounts
+  "/api/v1/admin/users/{id}/unlock":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    post:
+      summary: Unlock a user account
+      tags:
+      - admin/users
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — user is unlocked
+  "/api/v1/admin/users/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    delete:
+      summary: Soft-delete a user
+      tags:
+      - admin/users
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No Content — user soft-deleted
+  "/api/v1/incidents/{incident_id}/attachments":
+    parameters:
+    - name: incident_id
+      in: path
+      schema:
+        type: integer
+      required: true
+    post:
+      summary: Upload a file attachment to an incident
+      tags:
+      - attachments
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: Created — file attached to incident
+        '422':
+          description: Unprocessable — no file provided
+        '404':
+          description: Not Found — user from another org cannot see the incident
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: string
+              format: binary
+        required: true
+    get:
+      summary: List attachments on an incident
+      tags:
+      - attachments
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — lists attachments with proxy URLs
+  "/api/v1/attachments/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    delete:
+      summary: Purge an attachment
+      tags:
+      - attachments
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No Content — attachment purged
+        '404':
+          description: Not Found — user from another org cannot see the attachment
   "/api/v1/auth/signup":
     post:
       summary: Create a new tenant + admin user
@@ -265,6 +557,90 @@ paths:
       responses:
         '204':
           description: No Content
+  "/api/v1/incidents/{incident_id}/comments":
+    parameters:
+    - name: incident_id
+      in: path
+      schema:
+        type: integer
+      required: true
+    get:
+      summary: List comments on an incident
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Add a comment to an incident
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: Created — author is set from current user, not params
+        '404':
+          description: Not Found — unrelated worker cannot see the incident
+        '422':
+          description: Unprocessable — empty body
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: object
+                  required:
+                  - body
+                  properties:
+                    body:
+                      type: string
+        required: true
+  "/api/v1/comments/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    patch:
+      summary: Update a comment
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: OK — admin can edit any comment
+        '404':
+          description: Not Found — unrelated worker cannot see the comment
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: object
+                  properties:
+                    body:
+                      type: string
+        required: true
+    delete:
+      summary: Delete a comment
+      tags:
+      - comments
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No Content — author deletes their own comment
   "/api/v1/incidents/{incident_id}/corrective_actions":
     parameters:
     - name: incident_id
@@ -384,6 +760,39 @@ paths:
                   - verify
                   - cancel
         required: true
+  "/api/v1/dashboard":
+    get:
+      summary: Summary stats for current user
+      tags:
+      - dashboard
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — investigator sees incidents on their sites only
+        '401':
+          description: Unauthorized — no token
+  "/api/v1/incidents/{incident_id}/versions":
+    parameters:
+    - name: incident_id
+      in: path
+      schema:
+        type: integer
+      required: true
+    get:
+      summary: Audit trail for an incident
+      tags:
+      - incident_versions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — whodunnit_user is resolved per-version across different
+            users
+        '404':
+          description: Not Found — Pundit scope hides incident from unrelated worker
+        '401':
+          description: Unauthorized — no token
   "/api/v1/incidents":
     get:
       summary: List incidents (paginated, Pundit-scoped)
@@ -542,7 +951,7 @@ paths:
       parameters: []
       responses:
         '200':
-          description: Transition applied
+          description: Admin who reported the incident can submit it
         '422':
           description: Invalid transition or unknown event
           content:
@@ -573,3 +982,139 @@ paths:
                 severity:
                   type: integer
         required: true
+  "/api/v1/me":
+    get:
+      summary: Return the current user's profile
+      tags:
+      - me
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized — no token
+    patch:
+      summary: Update the current user's name
+      tags:
+      - me
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: OK — only name is updated; email and role are ignored
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                me:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+        required: true
+  "/api/v1/incidents/{incident_id}/witnesses":
+    parameters:
+    - name: incident_id
+      in: path
+      schema:
+        type: integer
+      required: true
+    get:
+      summary: List witnesses for an incident
+      tags:
+      - witnesses
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — lists witnesses for a visible incident
+        '404':
+          description: Not Found — user from another org cannot see the incident
+    post:
+      summary: Add a witness to an incident
+      tags:
+      - witnesses
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '201':
+          description: Created — reporter adds a witness to their draft
+        '404':
+          description: Not Found — non-reporter worker cannot see the incident
+        '422':
+          description: Unprocessable — name is required
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                witness:
+                  type: object
+                  required:
+                  - name
+                  properties:
+                    name:
+                      type: string
+                    email:
+                      type: string
+                      format: email
+                    phone:
+                      type: string
+                    statement:
+                      type: string
+        required: true
+  "/api/v1/witnesses/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    patch:
+      summary: Update a witness
+      tags:
+      - witnesses
+      security:
+      - bearerAuth: []
+      parameters: []
+      responses:
+        '200':
+          description: OK — admin updates the witness
+        '403':
+          description: Forbidden — worker cannot edit a witness
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                witness:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    email:
+                      type: string
+                      format: email
+                    phone:
+                      type: string
+                    statement:
+                      type: string
+        required: true
+    delete:
+      summary: Delete a witness
+      tags:
+      - witnesses
+      security:
+      - bearerAuth: []
+      responses:
+        '204':
+          description: No Content — investigator deletes the witness
+        '403':
+          description: Forbidden — reporter cannot delete a witness
