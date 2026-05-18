@@ -219,6 +219,21 @@ RSpec.describe "Incidents API", type: :request do
         end
       end
 
+      response "200", "Admin who reported the incident can submit it" do
+        let(:admin_reporter)   { create(:user, :admin, organization: org) }
+        let(:admin_incident)   { create(:incident, organization: org, site: site, reporter: admin_reporter) }
+        let(:id)               { admin_incident.id }
+        let(:Authorization)    { "Bearer #{jwt_for(admin_reporter)}" }
+        let(:body)             { { event: "submit" } }
+
+        before { create(:site_membership, user: admin_reporter, site: site) }
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data.dig("data", "attributes", "state")).to eq("submitted")
+        end
+      end
+
       response "422", "Invalid transition or unknown event" do
         let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
         let(:body)          { { event: "explode" } }

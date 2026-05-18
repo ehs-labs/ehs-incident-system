@@ -7,7 +7,7 @@ class IncidentPolicy < ApplicationPolicy
 
   # ---- State transition guards ---------------------------------------------
   def submit?
-    same_org? && record.reporter_id == user.id && record.may_submit?
+    same_org? && (admin? || record.reporter_id == user.id) && record.may_submit?
   end
 
   def triage?
