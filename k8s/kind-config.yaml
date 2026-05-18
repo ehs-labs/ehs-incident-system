@@ -1,0 +1,13 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: ehs
+nodes:
+  - role: control-plane
+    # Forward host:8080 -> node:80 so nginx-ingress can be reached without
+    # a separate port-forward.  The ingress controller is deployed with
+    # hostPort: 80, which kind maps to the container's port 80 — this
+    # extraPortMapping then surfaces that on the host.
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
