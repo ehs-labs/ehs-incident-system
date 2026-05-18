@@ -3,7 +3,7 @@ source "https://rubygems.org"
 ruby "3.4.1"
 
 # ----- Core ------------------------------------------------------------------
-gem "rails", "~> 7.2"
+gem "rails", "~> 7.2", ">= 7.2.3.1"
 gem "pg",    "~> 1.5"
 gem "puma",  "~> 6.4"
 gem "bootsnap", require: false
@@ -68,8 +68,9 @@ group :development, :test do
   gem "rswag-specs"
   gem "rswag-api"
   gem "rswag-ui"
-  gem "byebug"
   gem "rubocop-rails-omakase", require: false
+  gem "brakeman", require: false
+  gem "bundler-audit", require: false
 end
 
 group :development do

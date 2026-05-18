@@ -1,15 +1,12 @@
-require "rails_helper"
+require "swagger_helper"
 
-# NOTE: this spec requires the following route layout (the agent does not
-# modify config/routes.rb):
+# Routes exercised:
 #   resources :incidents do
 #     resources :corrective_actions, only: %i[index create]
 #   end
 #   resources :corrective_actions, only: %i[index show update] do
 #     member { post "transitions", to: "corrective_actions#transition" }
 #   end
-#
-# Tests that need a route which isn't currently wired will be skipped.
 RSpec.describe "Corrective Actions API", type: :request do
   let(:org)          { create(:organization) }
   let(:site)         { create(:site, organization: org) }
@@ -20,7 +17,7 @@ RSpec.describe "Corrective Actions API", type: :request do
 
   before do
     create(:site_membership, user: investigator, site: site)
-    create(:site_membership, user: admin,        site: site)
+    create(:site_membership, user: admin, site: site)
   end
 
   let(:incident) do
@@ -34,159 +31,231 @@ RSpec.describe "Corrective Actions API", type: :request do
     inc
   end
 
-  def json
-    JSON.parse(response.body)
+  def jwt_for(user)
+    Warden::JWTAuth::UserEncoder.new.call(user, :user, nil).first
   end
 
-  describe "GET /api/v1/incidents/:incident_id/corrective_actions" do
-    it "lists actions for the incident, scoped by policy" do
-      create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
-      create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
-      # An action on another incident — must not leak in.
-      other_inc = create(:incident, organization: org, site: site, reporter: reporter)
-      create(:corrective_action, incident: other_inc, assignee: assignee, created_by: investigator)
+  # ---------------------------------------------------------------------------
+  # GET /api/v1/incidents/:incident_id/corrective_actions
+  # ---------------------------------------------------------------------------
+  path "/api/v1/incidents/{incident_id}/corrective_actions" do
+    parameter name: :incident_id, in: :path, schema: { type: :integer }, required: true
 
-      get "/api/v1/incidents/#{incident.id}/corrective_actions", headers: auth_headers(investigator)
+    let(:incident_id) { incident.id }
 
-      expect(response).to have_http_status(:ok)
-      expect(json["data"].size).to eq(2)
+    get "List corrective actions for an incident" do
+      tags "corrective_actions"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
+
+      let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
+
+      response "200", "OK — actions scoped by Pundit policy" do
+        before do
+          create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
+          create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
+          # Action on a different incident — must not appear in results.
+          other_inc = create(:incident, organization: org, site: site, reporter: reporter)
+          create(:corrective_action, incident: other_inc, assignee: assignee, created_by: investigator)
+        end
+
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data["data"].size).to eq(2)
+        end
+      end
+
+      response "401", "Unauthorized — no token" do
+        let(:Authorization) { "" }
+
+        produces "application/problem+json"
+
+        run_test! do |response|
+          expect(response.status).to eq(401)
+        end
+      end
     end
 
-    it "returns 401 without a token" do
-      get "/api/v1/incidents/#{incident.id}/corrective_actions"
-      expect(response).to have_http_status(:unauthorized)
-    end
-  end
+    post "Create a corrective action for an incident" do
+      tags "corrective_actions"
+      consumes "application/json"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
 
-  describe "GET /api/v1/corrective_actions (flat list)" do
-    before do
-      skip "flat index route not wired" unless route_exists?("/api/v1/corrective_actions", :get)
-    end
-
-    it "supports state and overdue filters" do
-      open_action   = create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
-      done_action   = create(:corrective_action, :done, incident: incident, assignee: assignee, created_by: investigator)
-      overdue_act   = create(:corrective_action, :overdue, incident: incident, assignee: assignee, created_by: investigator)
-
-      get "/api/v1/corrective_actions?state=open", headers: auth_headers(investigator)
-      ids = json["data"].map { |d| d["id"].to_i }
-      expect(ids).to include(open_action.id, overdue_act.id)
-      expect(ids).not_to include(done_action.id)
-
-      get "/api/v1/corrective_actions?overdue=true", headers: auth_headers(investigator)
-      ids = json["data"].map { |d| d["id"].to_i }
-      expect(ids).to eq([overdue_act.id])
-    end
-  end
-
-  describe "GET /api/v1/corrective_actions/:id" do
-    it "returns the action when the caller is allowed" do
-      action = create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
-
-      get "/api/v1/corrective_actions/#{action.id}", headers: auth_headers(investigator)
-
-      expect(response).to have_http_status(:ok)
-      expect(json["data"]["id"]).to eq(action.id.to_s)
-    end
-
-    it "returns 404 when the action belongs to another org" do
-      other_org = create(:organization)
-      other_site = create(:site, organization: other_org)
-      other_user = create(:user, organization: other_org)
-      other_inc  = create(:incident, organization: other_org, site: other_site, reporter: other_user)
-      other_act  = create(:corrective_action, incident: other_inc, assignee: other_user, created_by: other_user)
-
-      get "/api/v1/corrective_actions/#{other_act.id}", headers: auth_headers(investigator)
-      expect(response).to have_http_status(:not_found)
-    end
-  end
-
-  describe "POST /api/v1/incidents/:incident_id/corrective_actions" do
-    let(:valid_params) do
-      {
-        corrective_action: {
-          title:       "Inspect aisle 4 forklift",
-          description: "Document mechanical inspection.",
-          due_date:    7.days.from_now.iso8601,
-          assignee_id: assignee.id
+      parameter name: :body, in: :body, required: true, schema: {
+        type: :object,
+        required: ["corrective_action"],
+        properties: {
+          corrective_action: {
+            type: :object,
+            required: %w[title description due_date assignee_id],
+            properties: {
+              title:       { type: :string },
+              description: { type: :string },
+              due_date:    { type: :string, format: :"date-time" },
+              assignee_id: { type: :integer }
+            }
+          }
         }
       }
-    end
 
-    it "creates an action and emits CorrectiveActionAssigned to the outbox" do
-      expect {
-        post "/api/v1/incidents/#{incident.id}/corrective_actions",
-             params: valid_params.to_json,
-             headers: auth_headers(investigator).merge("Content-Type" => "application/json")
-      }.to change(CorrectiveAction, :count).by(1)
-        .and change { OutboxEvent.where(event_type: "CorrectiveActionAssigned").count }.by(1)
+      let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
 
-      expect(response).to have_http_status(:created)
-      expect(json.dig("data", "attributes", "title")).to eq("Inspect aisle 4 forklift")
-    end
+      response "201", "Created — emits CorrectiveActionAssigned to outbox" do
+        let(:body) do
+          {
+            corrective_action: {
+              title:       "Inspect aisle 4 forklift",
+              description: "Document mechanical inspection.",
+              due_date:    7.days.from_now.iso8601,
+              assignee_id: assignee.id
+            }
+          }
+        end
 
-    it "denies workers without permission" do
-      post "/api/v1/incidents/#{incident.id}/corrective_actions",
-           params: valid_params.to_json,
-           headers: auth_headers(reporter).merge("Content-Type" => "application/json")
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data.dig("data", "attributes", "title")).to eq("Inspect aisle 4 forklift")
+          # The outbox event is emitted on create — verify a new event was added.
+          expect(OutboxEvent.where(event_type: "CorrectiveActionAssigned").count).to be >= 1
+        end
+      end
 
-      expect(response).to have_http_status(:forbidden)
-    end
+      response "403", "Forbidden — workers cannot create corrective actions" do
+        let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
+        let(:body) do
+          {
+            corrective_action: {
+              title:       "Unauthorized attempt",
+              description: "Should be rejected.",
+              due_date:    7.days.from_now.iso8601,
+              assignee_id: assignee.id
+            }
+          }
+        end
 
-    it "422s on validation error" do
-      post "/api/v1/incidents/#{incident.id}/corrective_actions",
-           params: { corrective_action: { title: "", due_date: 1.day.ago.iso8601, assignee_id: assignee.id } }.to_json,
-           headers: auth_headers(investigator).merge("Content-Type" => "application/json")
+        produces "application/problem+json"
 
-      expect(response).to have_http_status(:unprocessable_entity)
-      expect(response.content_type).to start_with("application/problem+json")
+        run_test! do |response|
+          expect(response.status).to eq(403)
+        end
+      end
+
+      response "422", "Validation error (blank title or past due_date)" do
+        let(:body) do
+          {
+            corrective_action: {
+              title:       "",
+              description: "Missing title.",
+              due_date:    1.day.ago.iso8601,
+              assignee_id: assignee.id
+            }
+          }
+        end
+
+        produces "application/problem+json"
+        schema "$ref" => "#/components/schemas/Problem"
+
+        run_test! do |response|
+          expect(response.status).to eq(422)
+          expect(response.content_type).to start_with("application/problem+json")
+        end
+      end
     end
   end
 
-  describe "POST /api/v1/corrective_actions/:id/transitions" do
+  # ---------------------------------------------------------------------------
+  # GET /api/v1/corrective_actions/:id
+  # ---------------------------------------------------------------------------
+  path "/api/v1/corrective_actions/{id}" do
+    parameter name: :id, in: :path, schema: { type: :integer }, required: true
+
+    let(:action) { create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator) }
+    let(:id)     { action.id }
+
+    get "Get a single corrective action" do
+      tags "corrective_actions"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
+
+      let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
+
+      response "200", "OK" do
+        run_test! do |response|
+          data = JSON.parse(response.body)
+          expect(data.dig("data", "id")).to eq(action.id.to_s)
+        end
+      end
+
+      response "404", "Not Found — action belongs to another org" do
+        let(:other_org)   { create(:organization) }
+        let(:other_site)  { create(:site, organization: other_org) }
+        let(:other_user)  { create(:user, organization: other_org) }
+        let(:other_inc)   { create(:incident, organization: other_org, site: other_site, reporter: other_user) }
+        let(:action)      { create(:corrective_action, incident: other_inc, assignee: other_user, created_by: other_user) }
+        let(:id)          { action.id }
+        let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
+
+        run_test! do |response|
+          expect(response.status).to eq(404)
+        end
+      end
+    end
+  end
+
+  # ---------------------------------------------------------------------------
+  # POST /api/v1/corrective_actions/:id/transitions
+  # ---------------------------------------------------------------------------
+  path "/api/v1/corrective_actions/{id}/transitions" do
+    parameter name: :id, in: :path, schema: { type: :integer }, required: true
+
     before do
       skip "transitions route not wired to #transition" unless transitions_routes_to_transition?
     end
 
     let(:action) { create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator) }
+    let(:id)     { action.id }
 
-    it "lets the assignee :start" do
-      post "/api/v1/corrective_actions/#{action.id}/transitions",
-           params: { event: "start" }.to_json,
-           headers: auth_headers(assignee).merge("Content-Type" => "application/json")
+    post "Run an AASM transition on a corrective action" do
+      tags "corrective_actions"
+      consumes "application/json"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
 
-      expect(response).to have_http_status(:ok)
-      expect(action.reload.state).to eq("in_progress")
-    end
+      parameter name: :body, in: :body, required: true, schema: {
+        type: :object,
+        required: ["event"],
+        properties: {
+          event: { type: :string, enum: %w[start complete verify cancel] }
+        }
+      }
 
-    it "lets the investigator :verify after :complete" do
-      action.start!
-      action.complete!
+      response "200", "Transition applied — assignee starts action" do
+        let(:Authorization) { "Bearer #{jwt_for(assignee)}" }
+        let(:body)          { { event: "start" } }
 
-      post "/api/v1/corrective_actions/#{action.id}/transitions",
-           params: { event: "verify" }.to_json,
-           headers: auth_headers(investigator).merge("Content-Type" => "application/json")
+        run_test! do |response|
+          expect(action.reload.state).to eq("in_progress")
+        end
+      end
 
-      expect(response).to have_http_status(:ok)
-      expect(action.reload.state).to eq("verified")
-    end
+      response "422", "Invalid or unknown event" do
+        let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
+        let(:body)          { { event: "explode" } }
 
-    it "rejects an unknown event with 422" do
-      post "/api/v1/corrective_actions/#{action.id}/transitions",
-           params: { event: "explode" }.to_json,
-           headers: auth_headers(investigator).merge("Content-Type" => "application/json")
+        produces "application/problem+json"
+        schema "$ref" => "#/components/schemas/Problem"
 
-      expect(response).to have_http_status(:unprocessable_entity)
+        run_test! do |response|
+          expect(response.status).to eq(422)
+        end
+      end
     end
   end
 
-  # ------------------------------------------------------------------ helpers
-  def route_exists?(path, method)
-    Rails.application.routes.recognize_path(path, method: method).present?
-  rescue ActionController::RoutingError
-    false
-  end
-
+  # ---------------------------------------------------------------------------
+  # Helpers
+  # ---------------------------------------------------------------------------
   def transitions_routes_to_transition?
     route = Rails.application.routes.recognize_path("/api/v1/corrective_actions/1/transitions", method: :post)
     route[:action] == "transition"

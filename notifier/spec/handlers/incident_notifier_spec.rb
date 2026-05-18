@@ -7,8 +7,6 @@ RSpec.describe Handlers::IncidentNotifier do
   let(:user_id) { "9001" }
 
   before do
-    DB[:delivery_log].truncate
-    DB[:users_mirror].truncate
     Notifier::Models::UserMirror.upsert(
       user_id: user_id, org_id: "1", role: "WORKER",
       name: "Test Worker", email: "test@example.com", telegram_chat_id: nil,

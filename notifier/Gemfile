@@ -46,8 +46,8 @@ group :development, :test do
   gem "karafka-testing"
   gem "factory_bot"
   gem "faker"
-  gem "byebug"
   gem "rubocop"
+  gem "bundler-audit", require: false
 end
 
 group :test do

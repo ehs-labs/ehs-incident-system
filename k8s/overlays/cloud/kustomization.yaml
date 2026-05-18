@@ -3,9 +3,11 @@ kind: Kustomization
 
 resources:
   - ../../base
-  # Secrets are supplied out-of-band (External Secrets Operator, sealed-secrets,
-  # or a `kubectl create secret` step in your CD pipeline). Do NOT commit real
-  # cloud secrets to git.
+  # Kafka credential Secrets (placeholder values — real values injected by ops
+  # via External Secrets Operator, Sealed Secrets, or kubectl create secret).
+  - kafka-credentials.secret.yaml
+  # One-shot job: creates SCRAM users, topics, and ACLs on first deploy.
+  - kafka-bootstrap.job.yaml
 
 patches:
   - target: { kind: Ingress, name: ehs }
@@ -21,6 +23,14 @@ patches:
         value:
           - hosts: [app.ehs.example.com]
             secretName: ehs-tls
+
+  # Inject Kafka SASL_SSL credentials + CA volume into core-api and sidekiq.
+  - path: kafka-patch-core-api.yaml
+  - path: kafka-patch-sidekiq.yaml
+
+  # Inject Kafka SASL_SSL credentials + CA volume into notifier deployments.
+  - path: kafka-patch-notifier.yaml
+  - path: kafka-patch-notifier-karafka.yaml
 
 images:
   - name: ghcr.io/stitch80/ehs-core-api

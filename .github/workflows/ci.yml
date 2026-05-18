@@ -72,7 +72,7 @@ jobs:
 
       - name: Brakeman
         working-directory: core-api
-        run: bundle exec brakeman --no-pager --quiet
+        run: bundle exec brakeman --no-pager --quiet --exit-on-warn --ignore-config config/brakeman.ignore
 
       - name: bundler-audit (core-api)
         working-directory: core-api
@@ -94,11 +94,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: npm audit
+      - name: pnpm audit
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile
-          pnpm audit --prod || true # surface issues without failing build
+          pnpm audit --audit-level high
 
   # ---------------------------------------------------------------------------
   # Core-API test suite — RSpec with real Postgres + Redis
@@ -151,10 +151,14 @@ jobs:
         working-directory: core-api
         run: bundle exec rspec
 
-      # OpenAPI is currently hand-maintained (core-api/openapi.yaml). The rswag
-      # `path/response` DSL hasn't been wired into the request specs yet — once
-      # it is, swap this back to `bundle exec rake rswag:specs:swaggerize` and
-      # remove the hand-edited file.
+      - name: Regenerate openapi.yaml
+        working-directory: core-api
+        run: bundle exec rake rswag:specs:swaggerize
+
+      - name: Assert openapi.yaml matches committed file
+        working-directory: core-api
+        run: git diff --exit-code openapi.yaml
+
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v4
         with:
@@ -247,15 +251,6 @@ jobs:
         with:
           name: openapi
           path: core-api
-
-      - name: openapi.yaml is well-formed
-        working-directory: core-api
-        run: |
-          # Until rswag DSL is wired into the request specs and we can regenerate,
-          # we only validate that the hand-maintained openapi.yaml exists and parses.
-          test -f openapi.yaml || { echo "::error::core-api/openapi.yaml missing"; exit 1; }
-          ruby -ryaml -e 'YAML.safe_load(File.read("openapi.yaml"), aliases: true)' \
-            || { echo "::error::openapi.yaml is not valid YAML"; exit 1; }
 
       - name: Validate Avro schemas
         run: |

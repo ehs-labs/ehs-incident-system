@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifier
+  namespace: ehs
+spec:
+  template:
+    spec:
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+      containers:
+        - name: notifier
+          envFrom:
+            - secretRef:
+                name: kafka-credentials
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /etc/kafka/ssl
+              readOnly: true

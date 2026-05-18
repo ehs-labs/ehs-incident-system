@@ -12,14 +12,14 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --port 5173",
     "typecheck": "vue-tsc --noEmit",
-    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.vue,.js --max-warnings 0",
-    "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.vue,.js --fix",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,vue,css,json}\"",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "gen:api": "openapi-typescript ../core-api/openapi.yaml --output src/api/generated/schema.ts"
+    "gen:api": "openapi-typescript ../core-api/openapi.yaml --output src/api/schema.ts"
   },
   "dependencies": {
     "axios": "^1.7.7",
@@ -44,7 +44,7 @@
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.11.1",
     "eslint-plugin-vue": "^9.28.0",
-    "happy-dom": "^15.7.4",
+    "happy-dom": "^20.9.0",
     "openapi-typescript": "^7.4.1",
     "prettier": "^3.3.3",
     "typescript": "^5.6.2",

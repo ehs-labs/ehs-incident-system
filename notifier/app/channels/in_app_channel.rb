@@ -9,7 +9,7 @@ module Channels
     # a client connects (or via the LISTEN/NOTIFY bridge once that lands).
     def deliver(user:, log:)
       if defined?(Notifier::Web::WsServer)
-        Notifier::Web::WsServer.push(user.user_id, log.to_h)
+        Notifier::Web::WsServer.push(user.user_id, log.values)
       end
       log.mark_sent!(:in_app)
     rescue StandardError => e
