@@ -47,6 +47,11 @@ Rails.application.configure do
   # incoming request so you'll need to provide the :host parameter yourself.
   config.action_mailer.default_url_options = { host: "www.example.com" }
 
+  # Rails 7.2 host authorization blocks www.example.com (the default Rails
+  # integration-test host) by default. Allow it so request specs and rswag
+  # run_test! calls are not rejected before reaching the router.
+  config.hosts << "www.example.com"
+
   # Print deprecation notices to the stderr.
   config.active_support.deprecation = :stderr
 
