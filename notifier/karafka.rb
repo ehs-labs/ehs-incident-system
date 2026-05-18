@@ -55,11 +55,22 @@ Dir[File.expand_path("app/consumers/**/*.rb", __dir__)].sort.each { |f| require 
 # -----------------------------------------------------------------------------
 class NotifierApp < Karafka::App
   setup do |config|
-    config.kafka = {
+    security_protocol = ENV.fetch("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+    kafka_config = {
       :"bootstrap.servers" => ENV.fetch("KAFKA_BROKERS", "kafka:9092"),
       :"client.id"         => "ehs-notifier",
-      :"auto.offset.reset" => "earliest"
+      :"auto.offset.reset" => "earliest",
+      :"security.protocol" => security_protocol
     }
+    if security_protocol.include?("SASL")
+      kafka_config[:"sasl.mechanisms"] = ENV.fetch("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512")
+      kafka_config[:"sasl.username"]   = ENV.fetch("KAFKA_SASL_USERNAME")
+      kafka_config[:"sasl.password"]   = ENV.fetch("KAFKA_SASL_PASSWORD")
+    end
+    if ENV["KAFKA_TLS_CA_FILE"]
+      kafka_config[:"ssl.ca.location"] = ENV.fetch("KAFKA_TLS_CA_FILE")
+    end
+    config.kafka = kafka_config
     config.client_id = "ehs-notifier"
     config.logger     = Logger.new($stdout)
     # Our topic names mix dots and underscores (corrective_actions.v1, users.v1)
