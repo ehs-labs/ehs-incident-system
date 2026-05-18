@@ -53,13 +53,14 @@ RSpec.describe "Api::V1::Attachments", type: :request do
       incident.photos.attach(io: File.open(fixture_path), filename: "sample.png", content_type: "image/png")
     end
 
-    it "lists attachments with signed URLs" do
+    it "lists attachments with proxy URLs" do
       get "/api/v1/incidents/#{incident.id}/attachments", headers: auth_headers(admin)
       expect(response).to have_http_status(:ok)
       body = JSON.parse(response.body).fetch("data")
       expect(body.size).to eq(1)
       attrs = body.first["attributes"]
-      expect(attrs["signed_url"]).to be_present
+      expect(attrs["url"]).to be_present
+      expect(attrs["signed_id"]).to be_present
       expect(attrs["filename"]).to eq("sample.png")
     end
   end
