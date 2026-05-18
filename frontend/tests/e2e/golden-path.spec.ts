@@ -11,14 +11,12 @@
  *    a TODO comment so components can be updated to add testids later.
  *
  * Bell-badge / WebSocket scenario (Scenario 3):
- *  The notifier uses a LISTEN/NOTIFY follow-up described in the plan as a
- *  known future improvement. Real-time cross-browser badge increment requires
- *  that the WS notifier pushes live events to already-connected clients. Until
- *  that mechanism is in place, Scenario 3 verifies the badge by RELOADING the
- *  page (which re-fetches the inbox count from the API), giving a deterministic
- *  result without relying on WS push. This approach is documented here so that
- *  when the LISTEN/NOTIFY path lands, the test can be upgraded to remove the
- *  reload and instead rely on expect.poll().
+ *  Live cross-process WS push is wired via Postgres LISTEN/NOTIFY: the Karafka
+ *  consumer publishes on the `delivery_log_appended` channel after writing a
+ *  delivery_log row, and the Falcon web process re-pushes the payload to live
+ *  sessions. Scenario 3 therefore asserts the investigator's bell badge
+ *  increments WITHOUT a page reload, polling for the badge update within a few
+ *  seconds of the worker submitting the incident.
  */
 
 import path from "path";
@@ -182,21 +180,14 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
   });
 
   // -------------------------------------------------------------------------
-  // Scenario 3: Bell badge reflects notification count after page reload
+  // Scenario 3: Bell badge increments live via WS push
   //
-  // NOTE: Real-time WS push to a second browser context is a known future
-  // improvement (LISTEN/NOTIFY follow-up in the plan). Until that path lands,
-  // this test verifies the bell badge count deterministically by reloading the
-  // investigator's page after a worker submits a new incident via the API
-  // (skipping the UI form to keep the test fast and deterministic). On reload
-  // the WS reconnects and replays queued notifications, updating the badge.
-  //
-  // When the LISTEN/NOTIFY follow-up lands, replace the reload + assertion
-  // block with an expect.poll() watching the badge without reloading.
+  // Cross-process push: Karafka consumer writes a delivery_log row and emits
+  // NOTIFY on `delivery_log_appended`; the Falcon web process's PgListener
+  // re-pushes to live WS sessions. The investigator's bell badge should update
+  // without a page reload within ~3 seconds.
   // -------------------------------------------------------------------------
-  test("Scenario 3 — bell badge increments after reload (WS replay path)", async ({
-    browser
-  }) => {
+  test("Scenario 3 — bell badge increments live via WS push", async ({ browser }) => {
     test.setTimeout(90_000);
 
     // Context A: investigator — observe the badge.
@@ -212,15 +203,15 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       await loginAs(pageA, INVESTIGATOR_EMAIL, PASSWORD);
       await pageA.goto("/dashboard");
 
-      // Read current badge count before submitting a new incident.
-      // Use evaluate to read the DOM immediately without waiting — the badge-sup
-      // element only exists when unread count > 0, so a waiting locator would
-      // time out when the count is 0.
+      // Snapshot the current badge count BEFORE the new event arrives. The
+      // .n-badge-sup element only renders when count > 0, so treat absence as 0.
       // TODO: add data-testid="inbox-badge" to the <n-badge> in AppShell.vue
-      const countBefore = await pageA.evaluate(() => {
-        const sup = document.querySelector(".n-badge-sup");
-        return sup ? parseInt(sup.textContent?.trim() || "0", 10) || 0 : 0;
-      });
+      const readBadge = () =>
+        pageA.evaluate(() => {
+          const sup = document.querySelector(".n-badge-sup");
+          return sup ? parseInt(sup.textContent?.trim() || "0", 10) || 0 : 0;
+        });
+      const countBefore = await readBadge();
 
       // Worker logs in; use their session's localStorage token to call the API
       // directly — this avoids a slow 5-step form and keeps the test under 90s.
@@ -255,28 +246,16 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       });
       expect(transitionRes.ok()).toBeTruthy();
 
-      // Reload investigator's page — WS reconnects and replays notifications.
-      await pageA.reload();
-      await pageA.waitForURL(/\/dashboard/, { timeout: 10_000 });
-
-      // After reload check badge. Use evaluate to avoid waiting for the element.
-      // The .n-badge-sup element only renders when the count is > 0.
-      const countAfter = await pageA.evaluate(() => {
-        const sup = document.querySelector(".n-badge-sup");
-        return sup ? parseInt(sup.textContent?.trim() || "0", 10) || 0 : 0;
-      });
-
-      if (countAfter > 0) {
-        expect(countAfter).toBeGreaterThanOrEqual(Math.max(countBefore, 1));
-      } else {
-        // Badge shows 0 — either WS replay hasn't delivered notifications yet,
-        // or they were already read. Navigate to Inbox to verify the notification
-        // was stored on the server side.
-        await pageA.goto("/inbox");
-        // The inbox should have at least one notification item (seeded data +
-        // the ones generated by this test suite).
-        await expect(pageA.locator(".n-list-item").first()).toBeVisible({ timeout: 10_000 });
-      }
+      // The Kafka → Karafka → in_app channel → NOTIFY → PgListener → WS push
+      // chain should deliver to the investigator's open session within a few
+      // seconds. No reload — the SPA receives the live frame and increments the
+      // badge in place.
+      await expect
+        .poll(readBadge, {
+          timeout: 15_000,
+          message: "expected bell badge to increment via live WS push"
+        })
+        .toBeGreaterThan(countBefore);
     } finally {
       await ctxA.close();
       await ctxB.close();

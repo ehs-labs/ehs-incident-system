@@ -33,3 +33,22 @@ env:
 | `outbox_events` with `published_at IS NULL` older than 60s | DB query / metric | > 100 |
 | Karafka consumer lag | Karafka's own Prometheus metrics | > 1000 |
 | `delivery_log` failed state | DB query / metric | rate > 5% |
+
+## Cross-process notification bus
+
+The notifier runs as two processes sharing one image: the Karafka consumer
+writes `delivery_log` rows, and the Falcon web server holds the live WebSocket
+sessions. Since they share no memory, the consumer cannot push to sessions
+directly; instead, Postgres `NOTIFY` decouples the two JVM-like processes.
+
+- Publisher: `Channels::InAppChannel.deliver` (runs in the Karafka container)
+  emits `NOTIFY delivery_log_appended, '<json:{user_id, log}>'` after writing
+  the row.
+- Subscriber: `Notifier::Web::PgListener` (runs in the Falcon container) holds
+  a dedicated Sequel connection and `LISTEN`s on the channel; each notify is
+  re-pushed to matching `WsServer` sessions.
+- Failure mode: the listener thread reconnects with 1s/5s/15s backoff. If a
+  `NOTIFY` is dropped, the WS-reconnect replay (`DeliveryLog.recent_unread_for`)
+  is the safety net — clients always see their inbox on the next reconnect.
+- Kotlin/Spring analog: this is `ApplicationEventPublisher` across two JVMs,
+  with Postgres acting as a lightweight broker. No extra infra needed.

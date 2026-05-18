@@ -2,15 +2,20 @@ module Channels
   module InAppChannel
     module_function
 
-    # Persists the notification (DeliveryLog row already exists) and, when the
-    # WS server module is loaded in the same process, pushes via active sessions.
-    # The Karafka consumer process runs without the web app loaded — it just
-    # writes the row; the web process picks it up via `recent_unread_for` when
-    # a client connects (or via the LISTEN/NOTIFY bridge once that lands).
+    # Persists the notification (DeliveryLog row already exists) and pushes the
+    # payload to any live WebSocket sessions for the user.
+    #
+    # The notifier runs as two processes sharing one image: the Karafka consumer
+    # (no web app loaded) and the Falcon web server (sessions live here). The
+    # in-process branch covers the case where deliver is called inside the web
+    # process; the NOTIFY emits regardless so the OTHER process can pick it up
+    # via PgListener.
     def deliver(user:, log:)
-      if defined?(Notifier::Web::WsServer)
-        Notifier::Web::WsServer.push(user.user_id, log.values)
-      end
+      Notifier::Web::WsServer.push(user.user_id, log.values) if defined?(Notifier::Web::WsServer)
+
+      payload = JSON.generate(user_id: user.user_id, log: log.values)
+      DB.notify(:delivery_log_appended, payload: payload)
+
       log.mark_sent!(:in_app)
     rescue StandardError => e
       log.mark_failed!(:in_app, e.message)
