@@ -1,0 +1,184 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-bootstrap
+  namespace: ehs
+  labels:
+    app: kafka-bootstrap
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: kafka-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: kafka-ca
+          secret:
+            secretName: kafka-ca-cert
+        - name: scripts
+          configMap:
+            name: kafka-bootstrap-script
+            defaultMode: 0755
+      containers:
+        - name: kafka-bootstrap
+          image: bitnamilegacy/kafka:3.8.1
+          command: ["/scripts/bootstrap.sh"]
+          env:
+            - name: KAFKA_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-admin-credentials
+                  key: KAFKA_ADMIN_USERNAME
+            - name: KAFKA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-admin-credentials
+                  key: KAFKA_ADMIN_PASSWORD
+            - name: KAFKA_BROKERS
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-admin-credentials
+                  key: KAFKA_BROKERS
+            # Per-service credentials — picked up by the script to create SCRAM entries
+            - name: CORE_API_KAFKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: kafka-credentials
+                  key: KAFKA_SASL_PASSWORD
+          volumeMounts:
+            - name: kafka-ca
+              mountPath: /etc/kafka/ssl
+              readOnly: true
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-bootstrap-script
+  namespace: ehs
+data:
+  bootstrap.sh: |
+    #!/bin/bash
+    # One-shot Kafka bootstrap: create SCRAM users, topics, and ACLs.
+    # Safe to re-run (all operations are idempotent via --if-not-exists / --add-config).
+    set -euo pipefail
+
+    BOOTSTRAP="$KAFKA_BROKERS"
+    ADMIN_CFG=/tmp/admin.properties
+
+    cat > "$ADMIN_CFG" <<PROPERTIES
+    security.protocol=SASL_SSL
+    sasl.mechanism=SCRAM-SHA-512
+    sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_ADMIN_USERNAME}" password="${KAFKA_ADMIN_PASSWORD}";
+    ssl.ca.location=/etc/kafka/ssl/ca.crt
+    PROPERTIES
+
+    # -------------------------------------------------------------------------
+    # SCRAM users
+    # -------------------------------------------------------------------------
+    echo "[bootstrap] Creating SCRAM users..."
+
+    /opt/bitnami/kafka/bin/kafka-configs.sh \
+      --bootstrap-server "$BOOTSTRAP" \
+      --command-config "$ADMIN_CFG" \
+      --alter \
+      --add-config "SCRAM-SHA-512=[password=${CORE_API_KAFKA_PASSWORD}]" \
+      --entity-type users \
+      --entity-name core-api
+
+    # notifier uses a separate Secret injected by ops; retrieve from env if set,
+    # otherwise skip (warn and continue so re-runs after partial setup succeed).
+    if [ -n "${NOTIFIER_KAFKA_PASSWORD:-}" ]; then
+      /opt/bitnami/kafka/bin/kafka-configs.sh \
+        --bootstrap-server "$BOOTSTRAP" \
+        --command-config "$ADMIN_CFG" \
+        --alter \
+        --add-config "SCRAM-SHA-512=[password=${NOTIFIER_KAFKA_PASSWORD}]" \
+        --entity-type users \
+        --entity-name notifier
+    else
+      echo "[bootstrap] NOTIFIER_KAFKA_PASSWORD not set — skipping notifier SCRAM entry."
+    fi
+
+    # -------------------------------------------------------------------------
+    # Topics (idempotent)
+    # -------------------------------------------------------------------------
+    echo "[bootstrap] Creating topics..."
+
+    for topic in incidents.v1 corrective_actions.v1 users.v1 system.v1; do
+      /opt/bitnami/kafka/bin/kafka-topics.sh \
+        --bootstrap-server "$BOOTSTRAP" \
+        --command-config "$ADMIN_CFG" \
+        --create \
+        --if-not-exists \
+        --topic "$topic" \
+        --partitions 3 \
+        --replication-factor 1
+    done
+
+    # -------------------------------------------------------------------------
+    # ACLs — core-api: Producer on write-permitted topics; explicit DENY on users.v1
+    # -------------------------------------------------------------------------
+    echo "[bootstrap] Applying core-api ACLs..."
+
+    for topic in incidents.v1 corrective_actions.v1 system.v1; do
+      /opt/bitnami/kafka/bin/kafka-acls.sh \
+        --bootstrap-server "$BOOTSTRAP" \
+        --command-config "$ADMIN_CFG" \
+        --add \
+        --allow-principal User:core-api \
+        --operation Write \
+        --operation Describe \
+        --topic "$topic"
+    done
+
+    # Explicit DENY so the read is blocked even if a wildcard allow is added later.
+    /opt/bitnami/kafka/bin/kafka-acls.sh \
+      --bootstrap-server "$BOOTSTRAP" \
+      --command-config "$ADMIN_CFG" \
+      --add \
+      --deny-principal User:core-api \
+      --operation Read \
+      --topic users.v1
+
+    # -------------------------------------------------------------------------
+    # ACLs — notifier: Consumer on all topics; DENY Write on all topics
+    # -------------------------------------------------------------------------
+    echo "[bootstrap] Applying notifier ACLs..."
+
+    for topic in incidents.v1 corrective_actions.v1 users.v1 system.v1; do
+      /opt/bitnami/kafka/bin/kafka-acls.sh \
+        --bootstrap-server "$BOOTSTRAP" \
+        --command-config "$ADMIN_CFG" \
+        --add \
+        --allow-principal User:notifier \
+        --operation Read \
+        --operation Describe \
+        --topic "$topic"
+
+      /opt/bitnami/kafka/bin/kafka-acls.sh \
+        --bootstrap-server "$BOOTSTRAP" \
+        --command-config "$ADMIN_CFG" \
+        --add \
+        --deny-principal User:notifier \
+        --operation Write \
+        --topic "$topic"
+    done
+
+    # Consumer-group ACL for the notifier consumer groups
+    for group in domain_events reference_data notifier; do
+      /opt/bitnami/kafka/bin/kafka-acls.sh \
+        --bootstrap-server "$BOOTSTRAP" \
+        --command-config "$ADMIN_CFG" \
+        --add \
+        --allow-principal User:notifier \
+        --operation Read \
+        --group "$group"
+    done
+
+    echo "[bootstrap] Done."
