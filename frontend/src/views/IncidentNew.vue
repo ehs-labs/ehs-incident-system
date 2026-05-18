@@ -25,7 +25,7 @@ import {
   uploadAttachment,
   addWitness
 } from "@/api/incidents";
-import { ApiError, type IncidentType, type Severity } from "@/types/api";
+import { ApiError, fieldFromPointer, type IncidentType, type ProblemError, type Severity } from "@/types/api";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -35,16 +35,27 @@ const step = ref(0);
 const submitting = ref(false);
 const createdIncidentId = ref<string | null>(null);
 const error = ref<string | null>(null);
+// Field-level errors from the most recent failed request, mapped from
+// RFC 7807 `errors[]` rows. Cleared on every new attempt.
+const fieldErrors = ref<ProblemError[]>([]);
 
+function applyApiError(e: unknown) {
+  const api = e as ApiError;
+  error.value = api.problem?.detail ?? api.message;
+  fieldErrors.value = api.problem?.errors ?? [];
+}
+
+// Mirrors Incident::VALID_TYPES on the backend; keep in sync.
 const typeOptions: { label: string; value: IncidentType }[] = [
-  { label: "Slip", value: "slip" },
-  { label: "Trip", value: "trip" },
-  { label: "Fall", value: "fall" },
-  { label: "Chemical exposure", value: "chemical" },
-  { label: "Near-miss", value: "near_miss" },
-  { label: "Equipment failure", value: "equipment" },
-  { label: "Fire", value: "fire" },
-  { label: "Other", value: "other" }
+  { label: "Collision",              value: "collision" },
+  { label: "Slip",                   value: "slip" },
+  { label: "Fall",                   value: "fall" },
+  { label: "Near-miss",              value: "near_miss" },
+  { label: "Chemical exposure",      value: "exposure" },
+  { label: "Mechanical failure",     value: "mechanical" },
+  { label: "Electrical incident",    value: "electrical" },
+  { label: "Fire",                   value: "fire" },
+  { label: "Other",                  value: "other" }
 ];
 
 const severityOptions = [1, 2, 3, 4, 5].map((s) => ({
@@ -113,14 +124,14 @@ async function persistIncident(): Promise<string | null> {
     createdIncidentId.value = res.data.id;
     return res.data.id;
   } catch (e) {
-    error.value = (e as ApiError).problem?.detail ?? (e as ApiError).message;
+    applyApiError(e);
     return null;
   }
 }
 
 async function saveDraft() {
   submitting.value = true;
-  error.value = null;
+  error.value = null; fieldErrors.value = [];
   try {
     const id = await persistIncident();
     if (!id) return;
@@ -155,7 +166,7 @@ async function saveWitnesses(id: string) {
 
 async function finalSubmit() {
   submitting.value = true;
-  error.value = null;
+  error.value = null; fieldErrors.value = [];
   try {
     const id = await persistIncident();
     if (!id) return;
@@ -165,7 +176,7 @@ async function finalSubmit() {
     message.success("Incident submitted");
     router.push(`/incidents/${id}`);
   } catch (e) {
-    error.value = (e as ApiError).problem?.detail ?? (e as ApiError).message;
+    applyApiError(e);
   } finally {
     submitting.value = false;
   }
@@ -189,9 +200,20 @@ function onFileChange({ fileList }: { fileList: UploadFileInfo[] }) {
       v-if="error"
       type="error"
       closable
-      @close="error = null"
+      @close="error = null; fieldErrors = [];"
     >
-      {{ error }}
+      <div>{{ error }}</div>
+      <ul
+        v-if="fieldErrors.length"
+        style="margin: 6px 0 0 1.25em; padding: 0;"
+      >
+        <li
+          v-for="(fe, i) in fieldErrors"
+          :key="i"
+        >
+          <strong>{{ fieldFromPointer(fe.pointer) ?? fe.parameter ?? 'field' }}</strong>: {{ fe.detail }}
+        </li>
+      </ul>
     </n-alert>
 
     <n-card>

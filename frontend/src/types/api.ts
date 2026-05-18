@@ -11,13 +11,17 @@ export type IncidentState =
 
 export type ActionState = "open" | "in_progress" | "done" | "verified";
 
+// Must stay in sync with Incident::VALID_TYPES in core-api/app/models/incident.rb.
+// (Phase-3 follow-up: surface this list from the backend or share via a generated
+// type, so the two can't drift again.)
 export type IncidentType =
+  | "collision"
   | "slip"
-  | "trip"
   | "fall"
-  | "chemical"
   | "near_miss"
-  | "equipment"
+  | "exposure"
+  | "mechanical"
+  | "electrical"
   | "fire"
   | "other";
 
@@ -176,13 +180,29 @@ export interface OrgSettingAttributes {
 
 // RFC 7807 problem+json -------------------------------------------------------
 
+// One row in the `errors` array of an RFC 7807 problem+json response. The
+// backend sets pointer to "/data/attributes/<field>" or "/data/<relationship>".
+export interface ProblemError {
+  pointer?: string;
+  parameter?: string;
+  detail: string;
+}
+
 export interface ProblemDetails {
   type?: string;
   title?: string;
   status?: number;
   detail?: string;
   instance?: string;
-  errors?: Record<string, string[]>;
+  errors?: ProblemError[];
+}
+
+// Pull "incident_type" out of "/data/attributes/incident_type". Falls back to
+// the pointer string itself if it isn't a /data/attributes path.
+export function fieldFromPointer(pointer?: string): string | null {
+  if (!pointer) return null;
+  const m = pointer.match(/\/data\/attributes\/(.+)$/);
+  return m ? m[1] : pointer.replace(/^\/data\//, "");
 }
 
 export class ApiError extends Error {

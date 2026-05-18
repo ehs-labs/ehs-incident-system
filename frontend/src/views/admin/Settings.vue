@@ -4,7 +4,6 @@ import {
   NCard,
   NForm,
   NFormItem,
-  NInputNumber,
   NButton,
   NSpace,
   NAlert,
@@ -13,6 +12,7 @@ import {
 import { getSettings, updateSettings } from "@/api/admin";
 import { humanizeSeconds } from "@/utils/format";
 import type { ApiError } from "@/types/api";
+import DurationInput from "@/components/DurationInput.vue";
 
 const message = useMessage();
 const error = ref<string | null>(null);
@@ -76,7 +76,7 @@ onMounted(load);
     </n-alert>
     <n-card title="Triage deadlines by severity">
       <p style="color:#666; margin-top:0">
-        Seconds from submission until the incident is considered overdue for triage.
+        Time from submission until the incident is considered overdue for triage.
       </p>
       <n-form v-if="!loading">
         <n-form-item
@@ -84,15 +84,12 @@ onMounted(load);
           :key="sev"
           :label="`Severity ${sev}`"
         >
-          <n-input-number
-            v-model:value="overrides[sev]"
-            :min="60"
-            :step="600"
-            style="width: 200px"
-          />
-          <span style="margin-left: 12px; color: #666">
-            = {{ humanizeSeconds(overrides[sev]) }}
-          </span>
+          <n-space :size="12" align="center">
+            <duration-input v-model="overrides[sev]" />
+            <span style="color: #666">
+              = {{ humanizeSeconds(overrides[sev]) }}
+            </span>
+          </n-space>
         </n-form-item>
         <n-button
           type="primary"
