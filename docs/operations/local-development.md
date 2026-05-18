@@ -11,7 +11,7 @@
 ## Quickstart
 
 ```bash
-git clone https://github.com/stitch80/ehs-incident-system
+git clone https://github.com/ehs-labs/ehs-incident-system
 cd ehs-incident-system
 cp .env.example .env       # adjust JWT_SECRET, FIELD_CIPHER_KEY for non-trivial use
 ./scripts/bootstrap.sh

@@ -33,9 +33,9 @@ patches:
   - path: kafka-patch-notifier-karafka.yaml
 
 images:
-  - name: ghcr.io/stitch80/ehs-core-api
+  - name: ghcr.io/ehs-labs/ehs-core-api
     newTag: latest
-  - name: ghcr.io/stitch80/ehs-notifier
+  - name: ghcr.io/ehs-labs/ehs-notifier
     newTag: latest
-  - name: ghcr.io/stitch80/ehs-frontend
+  - name: ghcr.io/ehs-labs/ehs-frontend
     newTag: latest

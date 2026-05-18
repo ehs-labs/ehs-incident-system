@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/stitch80/ehs-frontend:latest
+          image: ghcr.io/ehs-labs/ehs-frontend:latest
           ports: [{ containerPort: 80 }]
           readinessProbe:
             httpGet: { path: /, port: 80 }

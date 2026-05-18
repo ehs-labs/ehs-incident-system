@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: notifier
-          image: ghcr.io/stitch80/ehs-notifier:latest
+          image: ghcr.io/ehs-labs/ehs-notifier:latest
           envFrom: [{ configMapRef: { name: ehs-config } }]
           env:
             - { name: POSTGRES_USER,     valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_USER } } }
@@ -49,7 +49,7 @@ spec:
     spec:
       containers:
         - name: karafka
-          image: ghcr.io/stitch80/ehs-notifier:latest
+          image: ghcr.io/ehs-labs/ehs-notifier:latest
           command: ["bundle", "exec", "karafka", "server"]
           envFrom: [{ configMapRef: { name: ehs-config } }]
           env:
@@ -73,7 +73,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: ghcr.io/stitch80/ehs-notifier:latest
+          image: ghcr.io/ehs-labs/ehs-notifier:latest
           command: ["bundle", "exec", "rake", "db:create", "db:migrate"]
           envFrom: [{ configMapRef: { name: ehs-config } }]
           env:

@@ -36,9 +36,9 @@ The `cloud/` overlay assumes:
 # Update images in cloud overlay
 cd k8s/overlays/cloud
 kustomize edit set image \
-  ghcr.io/stitch80/ehs-core-api=ghcr.io/stitch80/ehs-core-api:v0.1.0 \
-  ghcr.io/stitch80/ehs-notifier=ghcr.io/stitch80/ehs-notifier:v0.1.0 \
-  ghcr.io/stitch80/ehs-frontend=ghcr.io/stitch80/ehs-frontend:v0.1.0
+  ghcr.io/ehs-labs/ehs-core-api=ghcr.io/ehs-labs/ehs-core-api:v0.1.0 \
+  ghcr.io/ehs-labs/ehs-notifier=ghcr.io/ehs-labs/ehs-notifier:v0.1.0 \
+  ghcr.io/ehs-labs/ehs-frontend=ghcr.io/ehs-labs/ehs-frontend:v0.1.0
 cd ../../..
 
 # Apply

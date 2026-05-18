@@ -8,12 +8,7 @@
 ![Vue](https://img.shields.io/badge/Vue-3-green)
 ![Node](https://img.shields.io/badge/Node-20-green)
 
-<!--
-  CI badge — uncomment after pushing to GitHub and once the first CI run completes.
-  Update `stitch80` if the repo lives under a different owner.
-
-  [![CI](https://github.com/stitch80/ehs-incident-system/actions/workflows/ci.yml/badge.svg)](https://github.com/stitch80/ehs-incident-system/actions/workflows/ci.yml)
--->
+[![CI](https://github.com/ehs-labs/ehs-incident-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ehs-labs/ehs-incident-system/actions/workflows/ci.yml)
 
 
 ## What this is
@@ -50,7 +45,7 @@ See [`docs/architecture/02-c4-container.md`](docs/architecture/02-c4-container.m
 ## Try it in 5 minutes
 
 ```bash
-git clone https://github.com/stitch80/ehs-incident-system.git
+git clone https://github.com/ehs-labs/ehs-incident-system.git
 cd ehs-incident-system
 cp .env.example .env
 ./scripts/bootstrap.sh

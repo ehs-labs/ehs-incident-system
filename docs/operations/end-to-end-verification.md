@@ -8,7 +8,7 @@ A permanent step-by-step demo + smoke test. Use it as:
 ## 1. Bring up the stack
 
 ```bash
-git clone https://github.com/stitch80/ehs-incident-system
+git clone https://github.com/ehs-labs/ehs-incident-system
 cd ehs-incident-system
 cp .env.example .env
 ./scripts/bootstrap.sh

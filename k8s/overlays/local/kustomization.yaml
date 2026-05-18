@@ -25,9 +25,9 @@ patches:
 
 # Use a `dev` image tag for locally-built images
 images:
-  - name: ghcr.io/stitch80/ehs-core-api
+  - name: ghcr.io/ehs-labs/ehs-core-api
     newTag: dev
-  - name: ghcr.io/stitch80/ehs-notifier
+  - name: ghcr.io/ehs-labs/ehs-notifier
     newTag: dev
-  - name: ghcr.io/stitch80/ehs-frontend
+  - name: ghcr.io/ehs-labs/ehs-frontend
     newTag: dev

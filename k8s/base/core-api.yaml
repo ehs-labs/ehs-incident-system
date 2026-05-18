@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: core-api
-          image: ghcr.io/stitch80/ehs-core-api:latest
+          image: ghcr.io/ehs-labs/ehs-core-api:latest
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef: { name: ehs-config }
@@ -62,7 +62,7 @@ spec:
     spec:
       containers:
         - name: sidekiq
-          image: ghcr.io/stitch80/ehs-core-api:latest
+          image: ghcr.io/ehs-labs/ehs-core-api:latest
           command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
           envFrom:
             - configMapRef: { name: ehs-config }
@@ -90,7 +90,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: migrate
-          image: ghcr.io/stitch80/ehs-core-api:latest
+          image: ghcr.io/ehs-labs/ehs-core-api:latest
           command: ["bin/rails", "db:create", "db:migrate"]
           envFrom: [{ configMapRef: { name: ehs-config } }]
           env:
