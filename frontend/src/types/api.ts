@@ -1,5 +1,7 @@
 // Hand-defined backend shapes (Phase 3 will replace via openapi-typescript).
 
+import type { components } from "@/api/schema";
+
 export type Role = "worker" | "investigator" | "admin";
 
 export type IncidentState =
@@ -9,6 +11,7 @@ export type IncidentState =
   | "pending_closure"
   | "closed";
 
+// Generated schema includes "cancelled"; hand-rolled did not. Keep in sync.
 export type ActionState = "open" | "in_progress" | "done" | "verified";
 
 // Must stay in sync with Incident::VALID_TYPES in core-api/app/models/incident.rb.
@@ -50,16 +53,22 @@ export interface JsonApiList<T> {
 
 // Domain shapes --------------------------------------------------------------
 
-export interface User {
+// Re-exported from generated schema so callers get the server-side attribute
+// shape without duplication.
+export type UserAttributes = components["schemas"]["UserAttributes"];
+
+// SPA composite: bundles JSON:API `id` (resource-level, not in attributes)
+// with the server attributes. Extra SPA-only fields are documented below.
+export interface User extends UserAttributes {
+  // JSON:API resource id; lives outside the attributes object on the wire.
   id: string;
-  email: string;
-  name: string;
-  role: Role;
+  // Flattened from organization_id for legacy session storage — equals
+  // String(organization_id). Kept until auth store is refactored.
   org_id?: string;
-  organization_id?: number;
-  confirmed_at?: string | null;
-  locked_at?: string | null;
+  // Derived by the SPA from locked_at != null; the server exposes locked_at.
   locked?: boolean;
+  // The generated schema exposes deleted_at (timestamp); this boolean alias
+  // was used in older list views. Prefer checking deleted_at directly.
   deleted?: boolean;
 }
 
@@ -84,44 +93,42 @@ export interface MeAttributes {
   sites: Site[];
 }
 
-export interface IncidentAttributes {
+// Generated schema is the base; intersection adds:
+//   - fields the OpenAPI spec omits (served by the backend but not yet in the
+//     rswag DSL): organization_id, sla_breached_at, created_at, updated_at,
+//     triage_overdue, triage_deadline.
+//   - narrowed literal types for state/severity/incident_type that the rswag
+//     DSL emits as plain string/number.
+export type IncidentAttributes = components["schemas"]["IncidentAttributes"] & {
+  // Narrowed types — the generated schema uses string/number for these.
   state: IncidentState;
   incident_type: IncidentType;
   severity: Severity;
-  occurred_at: string;
-  location: string;
-  summary: string;
-  description: string;
-  root_cause: string | null;
-  submitted_at: string | null;
-  triaged_at: string | null;
-  closed_at: string | null;
+  // Fields served by the backend but absent from the rswag spec; add to the
+  // spec in a follow-up to make them officially generated.
+  organization_id: number;
   sla_breached_at: string | null;
   created_at: string;
   updated_at: string;
-  site_id: number;
-  reporter_id: number;
-  assignee_id: number | null;
-  organization_id: number;
   triage_overdue: boolean;
   triage_deadline: string | null;
-}
+};
 
-export interface CorrectiveActionAttributes {
-  title: string;
-  description: string;
+// Generated schema is the base; intersection adds:
+//   - state narrowed to the SPA's ActionState (schema also allows "cancelled"
+//     which the SPA doesn't surface yet).
+//   - Fields served by the backend but absent from the rswag spec: created_at,
+//     updated_at, created_by_id, evidence_blob_ids.
+export type CorrectiveActionAttributes = components["schemas"]["CorrectiveActionAttributes"] & {
+  // Narrowed to the SPA-visible subset; "cancelled" is a valid server state
+  // but not yet handled by the SPA's transition UI.
   state: ActionState;
-  due_date: string;
-  completed_at: string | null;
-  verified_at: string | null;
+  // Fields absent from the rswag spec; add in a follow-up.
   created_at: string;
   updated_at: string;
-  incident_id: number;
-  assignee_id: number;
   created_by_id: number;
-  overdue: boolean;
   evidence_blob_ids: string[];
-}
+};
 
 export interface WitnessAttributes {
   name: string;
