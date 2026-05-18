@@ -7,7 +7,7 @@
 # =============================================================================
 
 # ---------- Dev stage --------------------------------------------------------
-FROM node:20-alpine AS dev
+FROM node:26-alpine AS dev
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
@@ -21,7 +21,7 @@ EXPOSE 5173
 CMD ["pnpm", "run", "dev", "--host", "0.0.0.0", "--port", "5173"]
 
 # ---------- Build stage ------------------------------------------------------
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
