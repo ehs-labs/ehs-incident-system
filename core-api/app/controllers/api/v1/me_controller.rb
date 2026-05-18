@@ -12,13 +12,6 @@ module Api
         render json: me_payload(current_user.reload)
       end
 
-      # POST /api/v1/me/telegram_link
-      def telegram_link
-        token = SecureRandom.hex(16)
-        expires_at = 10.minutes.from_now
-        render json: { data: { type: "telegram_link", attributes: { link_token: token, expires_at: expires_at } } }
-      end
-
       private
 
       def me_params
@@ -44,8 +37,7 @@ module Api
                 slug: org&.slug,
                 name: org&.name
               },
-              sites:            sites,
-              telegram_linked:  false
+              sites:            sites
             }
           }
         }

@@ -82,7 +82,6 @@ export interface MeAttributes {
   role: Role;
   organization: Organization;
   sites: Site[];
-  telegram_linked: boolean;
 }
 
 export interface IncidentAttributes {

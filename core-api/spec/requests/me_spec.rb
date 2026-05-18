@@ -20,7 +20,6 @@ RSpec.describe "MeController", type: :request do
       expect(attrs["role"]).to eq("worker")
       expect(attrs["organization"]).to include("slug" => "acme-co")
       expect(attrs["sites"].first).to include("name" => "Plant 1", "timezone" => "Australia/Sydney")
-      expect(attrs["telegram_linked"]).to eq(false)
     end
 
     it "401s without a token" do
@@ -44,14 +43,4 @@ RSpec.describe "MeController", type: :request do
     end
   end
 
-  describe "POST /api/v1/me/telegram_link" do
-    it "returns a short-lived link token" do
-      post "/api/v1/me/telegram_link", headers: auth_headers(user)
-
-      expect(response).to have_http_status(:ok)
-      attrs = json.dig("data", "attributes")
-      expect(attrs["link_token"]).to match(/\A[0-9a-f]{32}\z/)
-      expect(Time.parse(attrs["expires_at"])).to be > Time.current
-    end
-  end
 end

@@ -39,9 +39,7 @@ Rails.application.routes.draw do
       end
 
       # ----- Profile ---------------------------------------------------
-      resource :me, only: %i[show update], controller: "me" do
-        post :telegram_link
-      end
+      resource :me, only: %i[show update], controller: "me"
 
       # ----- Domain ---------------------------------------------------
       resources :sites, only: %i[index show create update destroy]
