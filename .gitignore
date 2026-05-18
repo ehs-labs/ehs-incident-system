@@ -36,6 +36,7 @@ storage/
 .rspec_status
 coverage/
 spec/examples.txt
+**/spec/examples.txt
 .ruby-version
 .ruby-gemset
 
