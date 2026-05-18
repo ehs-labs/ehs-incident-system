@@ -177,3 +177,92 @@ kubectl -n ehs apply -f k8s/overlays/cloud/kafka-bootstrap.job.yaml
 ```
 
 The Job has `ttlSecondsAfterFinished: 600` — the completed pod is cleaned up automatically after 10 minutes. `backoffLimit: 3` means Kubernetes retries up to three times before marking the Job as failed.
+
+---
+
+## Encryption Verification
+
+This section documents how field-level encryption on `users.v1` was verified end-to-end, and the expected failure mode when the cipher key is absent or wrong.
+
+### Confirming ciphertext on the wire
+
+Trigger a `UserUpserted` event by mutating a user through the Rails runner:
+
+```bash
+docker compose exec core-api bin/rails runner "
+  u = User.first
+  u.update!(name: 'Cipher Test Name')
+  puts 'updated user id=' + u.id.to_s
+"
+```
+
+Wait a few seconds for `OutboxShipperJob` (Sidekiq) to drain, then consume from the topic and hex-dump the bytes:
+
+```bash
+docker compose exec kafka kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic users.v1 \
+  --from-beginning \
+  --max-messages 1 \
+  --property print.key=true \
+  --property print.headers=true \
+  2>/dev/null | xxd
+```
+
+A verified run produced the following output (event_id `01KRV67CN2ZVE9X7R3HTP8NF3F`, user_id 27):
+
+```
+00000000: 6576 656e 745f 7479 7065 3a55 7365 7255  event_type:UserU
+00000010: 7073 6572 7465 642c 6576 656e 745f 6964  pserted,event_id
+00000020: 3a30 314b 5256 3637 434e 325a 5645 3958  :01KRV67CN2ZVE9X
+00000030: 3752 3348 5450 384e 4633 4609 3237 0900  7R3HTP8NF3F.27..
+00000040: 0000 000e 0432 3704 3136 028a 0176 313a  .....27.16...v1:
+00000050: 366c 566b 4737 707a 335a 5961 344f 3339  6lVkG7pz3ZYa4O39
+00000060: 3a47 6c52 4947 6477 6563 6c72 4e39 6b70  :GlRIGdweclrN9kp
+00000070: 3353 3150 3936 413d 3d3a 7369 3743 4350  3S1P96A==:si7CCP
+00000080: 7542 2f56 324a 714a 6c72 484c 5459 3277  uB/V2JqJlrHLTY2w
+00000090: 3d3d 9a01 7631 3a38 7a6f 4848 7441 546c  ==..v1:8zoHHtATl
+000000a0: 4274 376d 3045 563a 324e 4f4e 4b75 525a  Bt7m0EV:2NONKuRZ
+000000b0: 3653 5a42 706f 5272 684e 4234 3658 4b57  6SZBpoRrhNB46XKW
+000000c0: 692b 5a61 4d67 3d3d 3a4f 376f 6a48 712b  i+ZaMg==:O7ojHq+
+000000d0: 7050 4d37 3267 656b 5450 7475 564b 673d  pPM72gekTPtuVKg=
+000000e0: 3d00 0000 cea2 9fe5 c667 0a              =........g.
+```
+
+The `v1:` prefix first appears at byte offset `0x4e` (`name_enc`) and again at `0x96` (`email_enc`). Neither field is human-readable plaintext — AES-256-GCM encryption is confirmed on the wire. A raw copy of this output is saved to `docs/design/screenshots/users-v1-ciphertext.txt`.
+
+### Missing or wrong key — expected failure mode
+
+When `FIELD_CIPHER_KEY` is absent or incorrect the notifier's `UsersConsumer` will raise on the first `users.v1` message it tries to decrypt:
+
+```
+Ehs::Envelope::MalformedCiphertext
+```
+
+This is an authenticated-encryption tag mismatch — OpenSSL raises `OpenSSL::Cipher::CipherError` which `Ehs::Envelope::Cipher#decrypt` re-raises as `MalformedCiphertext`. The consumer re-raises from its `rescue` block, which causes Karafka to mark the offset as unprocessed and log the error:
+
+```
+[UsersConsumer] failed offset=<n>: Ehs::Envelope::MalformedCiphertext: <openssl message>
+```
+
+Karafka's default error handling will retry the batch according to the topic's `max_wait_time` / DLQ policy, and the process will remain up (crash loops only occur if the consumer is configured with `raise_on_unexpected_status: true` at the app level).
+
+This behaviour is verified by the smoke spec at `notifier/spec/encryption_smoke_spec.rb`:
+
+```bash
+docker compose exec notifier bundle exec rspec spec/encryption_smoke_spec.rb \
+  --format documentation
+```
+
+Expected output (5 examples, 0 failures):
+
+```
+users.v1 envelope encryption
+  encrypts to the versioned wire format
+  decrypts back to the original plaintext with the correct key
+  raises on decryption with the wrong key
+  returns nil for nil plaintext
+  returns nil for nil wire value
+```
+
+The wrong-key example (`raises on decryption with the wrong key`) directly asserts `Ehs::Envelope::MalformedCiphertext` — the same exception that surfaces in production when `FIELD_CIPHER_KEY` is misconfigured.

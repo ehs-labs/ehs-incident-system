@@ -2,6 +2,7 @@ PATH
   remote: ../shared/envelope
   specs:
     ehs-envelope (0.1.0)
+      base64
 
 GEM
   remote: https://rubygems.org/
