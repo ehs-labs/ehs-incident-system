@@ -24,20 +24,20 @@ Notifications fan out across **email**, **Telegram**, and **in-app** (WebSocket)
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Browser["Vue 3 SPA<br/>(TypeScript)"]
-    CoreApi["core-api (Rails 7.2)<br/>DB: ehs_app<br/>Outbox publisher"]
-    Kafka[("Kafka<br/>+ Karapace<br/>(Avro)")]
-    Notifier["notifier (Sinatra)<br/>DB: ehs_notifier<br/>Karafka consumers<br/>WebSocket server"]
-    Email[(SMTP / MailCatcher)]
-    Telegram[(Telegram Bot API)]
-
-    Browser <-->|REST + JWT| CoreApi
-    Browser <-->|WebSocket| Notifier
-    CoreApi -->|outbox shipper| Kafka
-    Kafka --> Notifier
-    Notifier --> Email
-    Notifier --> Telegram
+C4Container
+  Person(worker, "Worker", "Reports incidents")
+  Container_Boundary(c1, "EHS Incident System") {
+    Container(spa, "Web SPA", "Vue 3 + Naive UI", "Login, submit, triage, verify")
+    Container(api, "core-api", "Rails 7.2", "Domain, Pundit, JWT")
+    Container(notifier, "notifier", "Karafka 2.5", "Email + in-app fanout")
+    ContainerDb(pg, "Postgres", "Two DBs: ehs_app, ehs_notifier")
+    Container(kafka, "Kafka", "Avro + Karapace", "Topics: incidents/CAs/users/system")
+  }
+  Rel(worker, spa, "HTTPS")
+  Rel(spa, api, "JSON:API + WebSocket")
+  Rel(api, kafka, "Outbox to Avro publish")
+  Rel(kafka, notifier, "Consume")
+  Rel(notifier, pg, "delivery_log + users_mirror")
 ```
 
 See [`docs/architecture/02-c4-container.md`](docs/architecture/02-c4-container.md) for the full C4 Container view.
@@ -86,6 +86,20 @@ Or sign up fresh at `/signup` — signup is enabled by default (toggle with `SIG
 | **DevOps** | Docker · Docker Compose · Kubernetes · Kustomize · GitHub Actions |
 
 See each stack section's "Why?" rationale in [`docs/architecture/02-c4-container.md`](docs/architecture/02-c4-container.md).
+
+## Why this stack
+
+**Event-sourcing via outbox + Kafka** — the outbox pattern decouples the notifier process from the synchronous request path so a slow email provider never blocks an incident submission. Events are durably written to Postgres inside the same transaction as the domain record, meaning a Kafka outage cannot drop notifications — the OutboxShipperJob acts as a transactional consistency bridge. This is the same pattern as Debezium/CDC change data capture, but home-grown to keep the deployment surface small and the logic auditable.
+
+**Avro + Karapace** — schema-registry-enforced contracts catch breaking changes at publish time, not at consume time three days later in a different service. Avro's compact binary encoding and explicit nullable/default rules make event schema evolution safe across consumer versions without coordination windows. Karapace is the open-source, Kafka-native registry used here; it is wire-compatible with the Confluent Schema Registry API but carries no Confluent license obligation.
+
+**Field-level AES-256-GCM encryption on `users.v1`** — PII (email, name, telegram_handle) is encrypted with a versioned keyring before being published to Kafka so that a broker compromise does not leak personal data in plaintext. The keyring supports multiple active key versions, allowing rotation without a full re-publish of historical events. The rotation drill is rehearsed end-to-end in `docs/flows/key-rotation.md`.
+
+**Rails 7.2 + jsonapi-serializer** — Rails 7.2 in API-only mode is mature, ships `ActiveRecord::Encryption` out of the box, has first-class `bin/rails` tooling, and pairs naturally with PostgreSQL. `jsonapi-serializer` (descended from Netflix's `fast_jsonapi`) is roughly 30x faster than ActiveModelSerializers and renders correct JSON:API envelopes without the heavyweight `jsonapi-resources` framework pulling in routes and controllers.
+
+**Vue 3 + Pinia + Naive UI** — Vue 3's composition API gives TypeScript-first ergonomics on par with React while keeping the learning curve gentle for contributors familiar with Rails view conventions. Pinia is the official Vue store with a tiny API surface and no Vuex boilerplate; stores map cleanly to bounded contexts. Naive UI is lean, fully typed, and renders fast — chosen over Element Plus or Vuetify for lower bundle weight and stronger design coherence at the cost of a smaller ecosystem.
+
+**Kustomize over Helm** — for a single application that is not a redistributable chart, Kustomize's patches-over-base model is easier to audit than a Helm chart with layered values files and a templating language that diverges from standard YAML. Overlays for `local/` (kind/Docker Desktop) and `cloud/` (managed Kubernetes with cert-manager and External Secrets Operator) stay in plain YAML and diff cleanly in pull requests. ADR-0006 has the full reasoning.
 
 ## Documentation
 
