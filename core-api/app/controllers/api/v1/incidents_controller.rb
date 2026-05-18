@@ -3,6 +3,8 @@ module Api
     class IncidentsController < BaseController
       before_action :set_incident, only: %i[show update transition]
 
+      INCLUDE_RELATIONS = %i[site reporter assignee].freeze
+
       # GET /api/v1/incidents
       def index
         scope = policy_scope(Incident).includes(:site, :reporter, :assignee)
@@ -13,13 +15,13 @@ module Api
         scope = scope.order(created_at: :desc).page(params[:page]).per(params[:per_page] || 25)
 
         pagination_link_header(scope)
-        render json: IncidentSerializer.new(scope.to_a).serializable_hash
+        render_incident(scope.to_a)
       end
 
       # GET /api/v1/incidents/:id
       def show
         authorize @incident
-        render json: IncidentSerializer.new(@incident, include: [:site, :reporter, :assignee]).serializable_hash
+        render_incident(@incident)
       end
 
       # POST /api/v1/incidents
@@ -30,14 +32,14 @@ module Api
         ))
         authorize @incident
         @incident.save!
-        render json: IncidentSerializer.new(@incident).serializable_hash, status: :created
+        render_incident(@incident, status: :created)
       end
 
       # PATCH /api/v1/incidents/:id
       def update
         authorize @incident
         @incident.update!(incident_params)
-        render json: IncidentSerializer.new(@incident).serializable_hash
+        render_incident(@incident)
       end
 
       # POST /api/v1/incidents/:id/transitions
@@ -56,10 +58,14 @@ module Api
           @incident.send("#{event}!")
         end
 
-        render json: IncidentSerializer.new(@incident.reload).serializable_hash
+        render_incident(@incident.reload)
       end
 
       private
+
+      def render_incident(record, status: :ok)
+        render json: IncidentSerializer.new(record, include: INCLUDE_RELATIONS).serializable_hash, status: status
+      end
 
       def set_incident
         @incident = policy_scope(Incident).find(params[:id])

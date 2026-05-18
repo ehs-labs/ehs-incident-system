@@ -38,6 +38,9 @@ RSpec.describe "Incidents API", type: :request do
           data = JSON.parse(response.body)
           expect(data["data"]).to be_an(Array)
           expect(data["data"].size).to be >= 1
+
+          included_types = data["included"].to_a.map { |r| r["type"] }
+          expect(included_types).to include("site", "user")
         end
       end
 
@@ -132,6 +135,12 @@ RSpec.describe "Incidents API", type: :request do
         run_test! do |response|
           data = JSON.parse(response.body)
           expect(data.dig("data", "id")).to eq(incident.id.to_s)
+
+          included_types = data["included"].to_a.map { |r| r["type"] }
+          expect(included_types).to include("site", "user")
+
+          site_record = data["included"].find { |r| r["type"] == "site" && r["id"] == site.id.to_s }
+          expect(site_record).not_to be_nil
         end
       end
 
