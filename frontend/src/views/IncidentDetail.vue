@@ -49,7 +49,8 @@ import {
   fmtRelative,
   severityColor,
   stateTagType,
-  actionStateTagType
+  actionStateTagType,
+  absoluteApiUrl
 } from "@/utils/format";
 import {
   allowedIncidentTransitions,
@@ -551,7 +552,7 @@ function allowedForAction(
                   <n-image
                     v-for="a in attachments"
                     :key="a.id"
-                    :src="a.attrs.url"
+                    :src="absoluteApiUrl(a.attrs.url)"
                     width="120"
                     height="120"
                     object-fit="cover"

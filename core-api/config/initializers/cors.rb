@@ -12,5 +12,13 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
              # the browser silently drops the response — axios then surfaces it
              # as a generic "Error 0 / Cannot reach the API" with no detail.
              credentials: true
+
+    # ActiveStorage proxy/redirect endpoints — the browser embeds these as
+    # <img src> on the incident detail page, which is a cross-origin request
+    # (frontend at :5173, core-api at :3000). Without this rule the
+    # AttachmentSerializer#url returns 200 to curl but the browser drops it.
+    resource "/rails/active_storage/*",
+             headers: :any,
+             methods: [:get, :head, :options]
   end
 end

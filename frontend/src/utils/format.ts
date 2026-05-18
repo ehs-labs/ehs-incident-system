@@ -19,6 +19,26 @@ export function fmtRelative(iso: string | null | undefined): string {
   }
 }
 
+// Returns the API origin (scheme + host + port) derived from VITE_API_BASE_URL,
+// e.g. "http://localhost:3000". Used to turn a relative Rails URL into an
+// absolute one the browser at localhost:5173 can fetch (the API itself lives
+// on a different port in dev).
+export function apiOrigin(): string {
+  const base = import.meta.env.VITE_API_BASE_URL ?? "/api/v1";
+  try {
+    return new URL(base, window.location.origin).origin;
+  } catch {
+    return "";
+  }
+}
+
+// Prepends `apiOrigin()` to a relative URL. Pass-through for absolute URLs.
+export function absoluteApiUrl(url: string | null | undefined): string {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${apiOrigin()}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
 export function humanizeSeconds(secs: number | null | undefined): string {
   if (secs == null) return "—";
   if (secs < 60) return `${Math.round(secs)}s`;
