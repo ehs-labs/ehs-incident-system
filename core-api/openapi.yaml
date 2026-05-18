@@ -1,139 +1,200 @@
+---
 openapi: 3.1.0
 info:
   title: EHS Incident System API
-  version: "1.0.0"
-  description: |
+  version: 1.0.0
+  description: |-
     REST API for the EHS Incident Management System (core-api).
-    All endpoints under /api/v1 require a Bearer JWT in the Authorization header
-    except the /auth/* endpoints. Errors follow RFC 7807 problem+json.
+    All endpoints under /api/v1 require a Bearer JWT in the Authorization
+    header except the /auth/* endpoints. Errors follow RFC 7807
+    problem+json.
 
-    NOTE: this file is hand-maintained for the initial cut. Each request spec
-    will be migrated to the rswag `path`/`response` DSL in a follow-up so this
-    document regenerates from the spec suite via
-    `bundle exec rake rswag:specs:swaggerize`.
-
+    Generated via `bundle exec rake rswag:specs:swaggerize`. Do not edit
+    by hand — edit the request specs instead.
 servers:
-  - url: http://localhost:3000
-    description: Local dev (docker-compose)
-  - url: https://api.ehs.example.com
-    description: Production placeholder
-
+- url: http://localhost:3000
+  description: Local dev (docker-compose)
+- url: https://api.ehs.example.com
+  description: Production placeholder
 security:
-  - bearerAuth: []
-
+- bearerAuth: []
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
   schemas:
     Problem:
       type: object
       description: RFC 7807 problem+json error envelope
       properties:
-        type:    { type: string }
-        title:   { type: string }
-        status:  { type: integer }
-        detail:  { type: string }
-        instance: { type: string }
-
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
     UserAttributes:
       type: object
       properties:
-        email:        { type: string, format: email }
-        name:         { type: string }
-        role:         { type: string, enum: [worker, investigator, admin] }
-        organization_id: { type: integer }
-        confirmed_at: { type: string, format: date-time, nullable: true }
-        locked_at:    { type: string, format: date-time, nullable: true }
-        deleted_at:   { type: string, format: date-time, nullable: true }
-
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum:
+          - worker
+          - investigator
+          - admin
+        organization_id:
+          type: integer
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        locked_at:
+          type: string
+          format: date-time
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
     IncidentAttributes:
       type: object
       properties:
-        state:         { type: string, enum: [draft, submitted, investigating, pending_closure, closed] }
-        incident_type: { type: string }
-        severity:      { type: integer, minimum: 1, maximum: 5 }
-        occurred_at:   { type: string, format: date-time }
-        location:      { type: string }
-        summary:       { type: string }
-        description:   { type: string }
-        root_cause:    { type: string, nullable: true }
-        submitted_at:  { type: string, format: date-time, nullable: true }
-        triaged_at:    { type: string, format: date-time, nullable: true }
-        closed_at:     { type: string, format: date-time, nullable: true }
-        site_id:       { type: integer }
-        reporter_id:   { type: integer }
-        assignee_id:   { type: integer, nullable: true }
-
+        state:
+          type: string
+          enum:
+          - draft
+          - submitted
+          - investigating
+          - pending_closure
+          - closed
+        incident_type:
+          type: string
+        severity:
+          type: integer
+          minimum: 1
+          maximum: 5
+        occurred_at:
+          type: string
+          format: date-time
+        location:
+          type: string
+        summary:
+          type: string
+        description:
+          type: string
+        root_cause:
+          type: string
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        triaged_at:
+          type: string
+          format: date-time
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        site_id:
+          type: integer
+        reporter_id:
+          type: integer
+        assignee_id:
+          type: integer
+          nullable: true
     CorrectiveActionAttributes:
       type: object
       properties:
-        title:        { type: string }
-        description:  { type: string }
-        state:        { type: string, enum: [open, in_progress, done, verified, cancelled] }
-        due_date:     { type: string, format: date-time }
-        completed_at: { type: string, format: date-time, nullable: true }
-        verified_at:  { type: string, format: date-time, nullable: true }
-        overdue:      { type: boolean }
-        assignee_id:  { type: integer }
-        incident_id:  { type: integer }
-
+        title:
+          type: string
+        description:
+          type: string
+        state:
+          type: string
+          enum:
+          - open
+          - in_progress
+          - done
+          - verified
+          - cancelled
+        due_date:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        overdue:
+          type: boolean
+        assignee_id:
+          type: integer
+        incident_id:
+          type: integer
     DashboardAttributes:
       type: object
       properties:
         open_incidents_by_severity:
           type: object
-          additionalProperties: { type: integer }
+          additionalProperties:
+            type: integer
         incidents_by_state:
           type: object
-          additionalProperties: { type: integer }
-        overdue_corrective_actions_count: { type: integer }
+          additionalProperties:
+            type: integer
+        overdue_corrective_actions_count:
+          type: integer
         last_30_day_incidents_trend:
           type: array
           items:
             type: object
             properties:
-              date:  { type: string, format: date }
-              count: { type: integer }
-        avg_time_to_close_seconds: { type: number, nullable: true }
+              date:
+                type: string
+                format: date
+              count:
+                type: integer
+        avg_time_to_close_seconds:
+          type: number
+          nullable: true
         sla_compliance:
           type: object
-          additionalProperties: { type: string }
-
+          additionalProperties:
+            type: string
 paths:
-  /api/v1/auth/signup:
+  "/api/v1/auth/signup":
     post:
-      tags: [auth]
-      security: []
       summary: Create a new tenant + admin user
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                user:
-                  type: object
-                  required: [email, password, name]
-                  properties:
-                    email:    { type: string, format: email }
-                    password: { type: string }
-                    name:     { type: string }
-      responses:
-        "201":
-          description: Created. JWT is returned in the Authorization header.
-
-  /api/v1/auth/login:
-    post:
-      tags: [auth]
+      tags:
+      - auth
       security: []
-      summary: Exchange credentials for a JWT
+      parameters: []
+      responses:
+        '201':
+          description: Created — JWT in Authorization header
+        '422':
+          description: Validation failed (e.g. duplicate email)
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
       requestBody:
-        required: true
         content:
           application/json:
             schema:
@@ -141,170 +202,374 @@ paths:
               properties:
                 user:
                   type: object
-                  required: [email, password]
+                  required:
+                  - email
+                  - password
+                  - name
                   properties:
-                    email:    { type: string, format: email }
-                    password: { type: string }
+                    email:
+                      type: string
+                      format: email
+                    password:
+                      type: string
+                    name:
+                      type: string
+                    organization_name:
+                      type: string
+              required:
+              - user
+        required: true
+  "/api/v1/auth/login":
+    post:
+      summary: Exchange credentials for a JWT
+      tags:
+      - auth
+      security: []
+      parameters: []
       responses:
-        "201":
-          description: OK. JWT in Authorization header.
-
-  /api/v1/auth/logout:
+        '200':
+          description: OK — JWT in Authorization header
+        '401':
+          description: Invalid credentials
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: object
+                  required:
+                  - email
+                  - password
+                  properties:
+                    email:
+                      type: string
+                      format: email
+                    password:
+                      type: string
+              required:
+              - user
+        required: true
+  "/api/v1/auth/logout":
     delete:
-      tags: [auth]
       summary: Revoke the current JWT
+      tags:
+      - auth
+      security:
+      - bearerAuth: []
       responses:
-        "204": { description: No Content }
-
-  /api/v1/me:
+        '204':
+          description: No Content
+  "/api/v1/incidents/{incident_id}/corrective_actions":
+    parameters:
+    - name: incident_id
+      in: path
+      schema:
+        type: integer
+      required: true
     get:
-      tags: [me]
-      summary: Current user's profile
+      summary: List corrective actions for an incident
+      tags:
+      - corrective_actions
+      security:
+      - bearerAuth: []
       responses:
-        "200": { description: OK }
-    patch:
-      tags: [me]
-      summary: Update own profile (name)
-      responses:
-        "200": { description: OK }
-
-  /api/v1/me/telegram_link:
+        '200':
+          description: OK — actions scoped by Pundit policy
+        '401':
+          description: Unauthorized — no token
     post:
-      tags: [me]
-      summary: Generate a short-lived Telegram link token
+      summary: Create a corrective action for an incident
+      tags:
+      - corrective_actions
+      security:
+      - bearerAuth: []
+      parameters: []
       responses:
-        "200": { description: OK }
-
-  /api/v1/dashboard:
+        '201':
+          description: Created — emits CorrectiveActionAssigned to outbox
+        '403':
+          description: Forbidden — workers cannot create corrective actions
+        '422':
+          description: Validation error (blank title or past due_date)
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - corrective_action
+              properties:
+                corrective_action:
+                  type: object
+                  required:
+                  - title
+                  - description
+                  - due_date
+                  - assignee_id
+                  properties:
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    due_date:
+                      type: string
+                      format: date-time
+                    assignee_id:
+                      type: integer
+        required: true
+  "/api/v1/corrective_actions/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
     get:
-      tags: [dashboard]
-      summary: KPIs for the current user's scope
+      summary: Get a single corrective action
+      tags:
+      - corrective_actions
+      security:
+      - bearerAuth: []
       responses:
-        "200": { description: OK }
-
-  /api/v1/sites:
-    get:
-      tags: [sites]
-      summary: List sites in the current org
+        '200':
+          description: OK
+        '404':
+          description: Not Found — action belongs to another org
+  "/api/v1/corrective_actions/{id}/transitions":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
+    post:
+      summary: Run an AASM transition on a corrective action
+      tags:
+      - corrective_actions
+      security:
+      - bearerAuth: []
+      parameters: []
       responses:
-        "200": { description: OK }
-
-  /api/v1/incidents:
+        '200':
+          description: Transition applied — assignee starts action
+        '422':
+          description: Invalid or unknown event
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - event
+              properties:
+                event:
+                  type: string
+                  enum:
+                  - start
+                  - complete
+                  - verify
+                  - cancel
+        required: true
+  "/api/v1/incidents":
     get:
-      tags: [incidents]
-      summary: List incidents (paginated; Pundit-scoped)
+      summary: List incidents (paginated, Pundit-scoped)
+      tags:
+      - incidents
+      security:
+      - bearerAuth: []
       parameters:
-        - { in: query, name: state,    schema: { type: string } }
-        - { in: query, name: severity, schema: { type: integer } }
-        - { in: query, name: site_id,  schema: { type: integer } }
-        - { in: query, name: q,        schema: { type: string } }
-        - { in: query, name: page,     schema: { type: integer } }
-        - { in: query, name: per_page, schema: { type: integer } }
+      - name: state
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: severity
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: site_id
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: q
+        in: query
+        schema:
+          type: string
+        required: false
+      - name: page
+        in: query
+        schema:
+          type: integer
+        required: false
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+        required: false
       responses:
-        "200": { description: OK }
+        '200':
+          description: OK
+        '401':
+          description: Unauthorized — no or invalid token
     post:
-      tags: [incidents]
       summary: Create a new (draft) incident
+      tags:
+      - incidents
+      security:
+      - bearerAuth: []
+      parameters: []
       responses:
-        "201": { description: Created }
-
-  /api/v1/incidents/{id}:
-    parameters: [{ in: path, name: id, required: true, schema: { type: integer } }]
+        '201':
+          description: Created
+        '422':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - incident
+              properties:
+                incident:
+                  type: object
+                  required:
+                  - site_id
+                  - incident_type
+                  - severity
+                  - occurred_at
+                  - location
+                  - summary
+                  - description
+                  properties:
+                    site_id:
+                      type: integer
+                    incident_type:
+                      type: string
+                    severity:
+                      type: integer
+                      minimum: 1
+                      maximum: 5
+                    occurred_at:
+                      type: string
+                      format: date-time
+                    location:
+                      type: string
+                    summary:
+                      type: string
+                    description:
+                      type: string
+        required: true
+  "/api/v1/incidents/{id}":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
     get:
-      tags: [incidents]
+      summary: Get an incident
+      tags:
+      - incidents
+      security:
+      - bearerAuth: []
       responses:
-        "200": { description: OK }
-        "404": { description: Not Found }
+        '200':
+          description: OK
+        '404':
+          description: Not Found — incident not in caller's Pundit scope
     patch:
-      tags: [incidents]
+      summary: Update an incident
+      tags:
+      - incidents
+      security:
+      - bearerAuth: []
+      parameters: []
       responses:
-        "200": { description: OK }
-
-  /api/v1/incidents/{id}/transitions:
-    parameters: [{ in: path, name: id, required: true, schema: { type: integer } }]
+        '200':
+          description: OK
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                incident:
+                  type: object
+                  properties:
+                    summary:
+                      type: string
+                    description:
+                      type: string
+                    severity:
+                      type: integer
+                      minimum: 1
+                      maximum: 5
+        required: true
+  "/api/v1/incidents/{id}/transitions":
+    parameters:
+    - name: id
+      in: path
+      schema:
+        type: integer
+      required: true
     post:
-      tags: [incidents]
-      summary: Run an AASM transition (submit, triage, verify, etc.)
+      summary: Run an AASM state transition
+      tags:
+      - incidents
+      security:
+      - bearerAuth: []
+      parameters: []
       responses:
-        "200": { description: OK }
-        "422": { description: Unprocessable (invalid transition or guard) }
-
-  /api/v1/incidents/{incident_id}/attachments:
-    parameters: [{ in: path, name: incident_id, required: true, schema: { type: integer } }]
-    get:  { tags: [attachments], responses: { "200": { description: OK } } }
-    post: { tags: [attachments], summary: Upload photo (multipart), responses: { "201": { description: Created } } }
-
-  /api/v1/incidents/{incident_id}/comments:
-    parameters: [{ in: path, name: incident_id, required: true, schema: { type: integer } }]
-    get:  { tags: [comments], responses: { "200": { description: OK } } }
-    post: { tags: [comments], responses: { "201": { description: Created } } }
-
-  /api/v1/incidents/{incident_id}/witnesses:
-    parameters: [{ in: path, name: incident_id, required: true, schema: { type: integer } }]
-    get:  { tags: [witnesses], responses: { "200": { description: OK } } }
-    post: { tags: [witnesses], responses: { "201": { description: Created } } }
-
-  /api/v1/incidents/{incident_id}/corrective_actions:
-    parameters: [{ in: path, name: incident_id, required: true, schema: { type: integer } }]
-    get:  { tags: [corrective_actions], responses: { "200": { description: OK } } }
-    post: { tags: [corrective_actions], responses: { "201": { description: Created } } }
-
-  /api/v1/incidents/{incident_id}/versions:
-    parameters: [{ in: path, name: incident_id, required: true, schema: { type: integer } }]
-    get:
-      tags: [audit]
-      summary: PaperTrail audit trail for an incident
-      responses:
-        "200": { description: OK }
-
-  /api/v1/corrective_actions:
-    get:
-      tags: [corrective_actions]
-      summary: Flat list (filters by state, assignee, overdue)
-      responses:
-        "200": { description: OK }
-
-  /api/v1/corrective_actions/{id}/transitions:
-    parameters: [{ in: path, name: id, required: true, schema: { type: integer } }]
-    post:
-      tags: [corrective_actions]
-      summary: Run AASM transition (start, complete, verify, cancel)
-      responses:
-        "200": { description: OK }
-
-  /api/v1/admin/users:
-    get:
-      tags: [admin]
-      summary: List org users (admin only)
-      responses:
-        "200": { description: OK }
-        "403": { description: Forbidden (non-admin) }
-
-  /api/v1/admin/users/invite:
-    post:
-      tags: [admin]
-      summary: Invite a user (devise_invitable). Sends an email.
-      responses:
-        "201": { description: Created }
-
-  /api/v1/admin/users/{id}/lock:
-    parameters: [{ in: path, name: id, required: true, schema: { type: integer } }]
-    post:
-      tags: [admin]
-      responses:
-        "200": { description: OK }
-
-  /api/v1/admin/users/{id}/unlock:
-    parameters: [{ in: path, name: id, required: true, schema: { type: integer } }]
-    post:
-      tags: [admin]
-      responses:
-        "200": { description: OK }
-
-  /api/v1/admin/sites:
-    get:  { tags: [admin], responses: { "200": { description: OK } } }
-    post: { tags: [admin], responses: { "201": { description: Created } } }
-
-  /api/v1/admin/settings:
-    get:   { tags: [admin], responses: { "200": { description: OK } } }
-    patch: { tags: [admin], responses: { "200": { description: OK } } }
+        '200':
+          description: Transition applied
+        '422':
+          description: Invalid transition or unknown event
+          content:
+            application/problem+json:
+              schema:
+                "$ref": "#/components/schemas/Problem"
+        '403':
+          description: Forbidden — caller authorized to see the incident but not perform
+            this transition
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - event
+              properties:
+                event:
+                  type: string
+                  enum:
+                  - submit
+                  - triage
+                  - verify
+                  - close
+                  - reopen
+                assignee_id:
+                  type: integer
+                severity:
+                  type: integer
+        required: true

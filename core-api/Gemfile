@@ -68,7 +68,6 @@ group :development, :test do
   gem "rswag-specs"
   gem "rswag-api"
   gem "rswag-ui"
-  gem "byebug"
   gem "rubocop-rails-omakase", require: false
 end
 
