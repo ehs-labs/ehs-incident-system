@@ -53,10 +53,17 @@ gem "ehs-envelope", path: "../shared/envelope"
 # ----- IDs -------------------------------------------------------------------
 gem "ulid-ruby", require: "ulid"
 
+# ----- Demo seeds ------------------------------------------------------------
+# Faker is used by db/demo_seeds.rb to generate realistic witnesses/comments.
+# It lives in the default group (NOT :development, :test) because the
+# production-style Docker image installs with BUNDLE_WITHOUT=development:test
+# but still runs `bin/rails db:seed:demo` during bootstrap. Cost is small and
+# nothing else loads Faker, so it stays out of the way at runtime.
+gem "faker"
+
 group :development, :test do
   gem "rspec-rails"
   gem "factory_bot_rails"
-  gem "faker"
   gem "shoulda-matchers"
   gem "rswag-specs"
   gem "rswag-api"

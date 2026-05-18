@@ -24,9 +24,13 @@ class Incident < ApplicationRecord
 
   validates :incident_type, presence: true, inclusion: { in: VALID_TYPES }
   validates :severity,      presence: true, inclusion: { in: SEVERITIES.to_a }
-  validates :occurred_at,   presence: true
-  validates :location,      presence: true, length: { maximum: 200 }
   validates :summary,       presence: true, length: { maximum: 200 }
+  # occurred_at + location are collected at step 2 of the multi-step form, so
+  # a draft saved at step 1 may not have them yet. The AASM `submit` guard
+  # (`ready_for_submission?`) re-checks every required field at transition
+  # time so a user can never reach `submitted` with an incomplete payload.
+  validates :occurred_at, presence: true, unless: :draft?
+  validates :location,    presence: true, length: { maximum: 200 }, unless: :draft?
   validate  :reporter_in_same_org
   validate  :site_in_same_org
 

@@ -2,33 +2,26 @@ test:
   service: Disk
   root: <%= Rails.root.join("tmp/storage") %>
 
+# MinIO / S3 — what docker-compose actually wires up for core-api in dev. The
+# endpoint points at the local MinIO container (http://minio:9000) with the
+# `minioadmin` keys; in prod, the same envs point at AWS S3 (or any S3-
+# compatible blob store) and `force_path_style` is harmless on AWS too.
+#
+# The bucket `ehs-attachments` is created by `scripts/postgres-init.sh` /
+# `minio-init` on bootstrap, so this is ready to use out of the box.
+minio:
+  service: S3
+  endpoint:           <%= ENV.fetch("S3_ENDPOINT", "http://minio:9000") %>
+  region:             <%= ENV.fetch("S3_REGION", "us-east-1") %>
+  bucket:             <%= ENV.fetch("S3_BUCKET", "ehs-attachments") %>
+  access_key_id:      <%= ENV.fetch("S3_ACCESS_KEY_ID", "minioadmin") %>
+  secret_access_key:  <%= ENV.fetch("S3_SECRET_ACCESS_KEY", "minioadmin") %>
+  force_path_style:   true   # required for MinIO's path-style URLs
+
+# Local Disk fallback. Not wired by any environment by default — useful if
+# you want to bypass MinIO and inspect uploads on the host. Note: the Docker
+# image's /app is owned by ruby:1001, so a writable storage/ dir must exist
+# before this works.
 local:
   service: Disk
   root: <%= Rails.root.join("storage") %>
-
-# Use bin/rails credentials:edit to set the AWS secrets (as aws:access_key_id|secret_access_key)
-# amazon:
-#   service: S3
-#   access_key_id: <%= Rails.application.credentials.dig(:aws, :access_key_id) %>
-#   secret_access_key: <%= Rails.application.credentials.dig(:aws, :secret_access_key) %>
-#   region: us-east-1
-#   bucket: your_own_bucket-<%= Rails.env %>
-
-# Remember not to checkin your GCS keyfile to a repository
-# google:
-#   service: GCS
-#   project: your_project
-#   credentials: <%= Rails.root.join("path/to/gcs.keyfile") %>
-#   bucket: your_own_bucket-<%= Rails.env %>
-
-# Use bin/rails credentials:edit to set the Azure Storage secret (as azure_storage:storage_access_key)
-# microsoft:
-#   service: AzureStorage
-#   storage_account_name: your_account_name
-#   storage_access_key: <%= Rails.application.credentials.dig(:azure_storage, :storage_access_key) %>
-#   container: your_container_name-<%= Rails.env %>
-
-# mirror:
-#   service: Mirror
-#   primary: local
-#   mirrors: [ amazon, google, microsoft ]
