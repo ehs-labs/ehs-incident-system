@@ -65,6 +65,27 @@ ensure_kind() {
 }
 
 # ---------------------------------------------------------------------------
+# nginx-ingress (kind only)
+#
+# docker-desktop and minikube provide ingress via separate addons; kind ships
+# without a controller, so the Ingress in k8s/base/ingress.yaml has nothing
+# to process unless we install one here. kubectl apply is idempotent, so this
+# is safe to run on every invocation.
+# ---------------------------------------------------------------------------
+INGRESS_MANIFEST_URL="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
+
+install_ingress() {
+  log "Installing nginx-ingress controller (kind provider manifest)..."
+  kubectl apply -f "$INGRESS_MANIFEST_URL"
+
+  log "Waiting for nginx-ingress controller pod to become Ready..."
+  kubectl -n ingress-nginx wait --for=condition=Ready pod \
+    --selector=app.kubernetes.io/component=controller \
+    --timeout=3m \
+    || warn "nginx-ingress controller not Ready yet — check: kubectl -n ingress-nginx get pods"
+}
+
+# ---------------------------------------------------------------------------
 # Image build, tag, and load for kind
 # ---------------------------------------------------------------------------
 build_and_load_images() {
@@ -152,6 +173,7 @@ case "$CONTEXT" in
     # Already on the right kind cluster — still rebuild and reload images so
     # the cluster picks up any local code changes.
     log "Resuming on existing kind cluster: ${CONTEXT}"
+    install_ingress
     build_and_load_images
     ;;
 
@@ -159,6 +181,7 @@ case "$CONTEXT" in
     # A different kind cluster is active; switch to ours or create it.
     log "Different kind cluster active ('${CONTEXT}'). Switching to '${CLUSTER_NAME}'..."
     ensure_kind
+    install_ingress
     build_and_load_images
     ;;
 
@@ -166,6 +189,7 @@ case "$CONTEXT" in
     # No context at all — create the kind cluster.
     log "No active kubectl context. Creating kind cluster '${CLUSTER_NAME}'..."
     ensure_kind
+    install_ingress
     build_and_load_images
     ;;
 

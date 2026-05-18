@@ -23,6 +23,12 @@ brew install kind kubectl kustomize
 What the script does:
 
 - Creates the kind cluster `ehs` from `k8s/kind-config.yaml` if it does not already exist.
+- Installs the nginx-ingress controller from the upstream kind-provider manifest
+  (`deploy/static/provider/kind/deploy.yaml`) and waits for the controller pod to become Ready.
+  Kind ships without an ingress controller, so the `Ingress` in `k8s/base/ingress.yaml`
+  (`ingressClassName: nginx`) would otherwise have nothing to process and traffic on host
+  port 8080 would never reach the app. Docker Desktop and minikube provide ingress via
+  separate addons, so this step is kind-only. `kubectl apply` is idempotent.
 - Builds `core-api`, `notifier`, and `frontend` via `docker compose build`, tags each image
   as `ghcr.io/ehs-labs/ehs-<name>:dev`, and loads it into the cluster with `kind load docker-image`.
 - Applies `k8s/overlays/local` via Kustomize and waits for the migration jobs and deployment
