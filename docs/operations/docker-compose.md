@@ -34,7 +34,9 @@ keep infra in compose, just `docker compose up -d postgres redis kafka karapace 
 
 ## Dev overrides
 
-`docker-compose.dev.yml` is auto-merged with `docker-compose.yml`. It:
-- Mounts service source code (hot reload)
-- Replaces commands with their dev variants (`vite dev`, `rails s` instead of `bundle exec puma`)
-- Mounts persistent bundler / pnpm caches in named volumes
+Compose v2 auto-merges only `docker-compose.override.yml`. This repo
+does not ship one — the standard dev flow uses `./scripts/bootstrap.sh`
+and rebuilds when source changes. If you need host-mounted source for
+hot reload, drop your own `docker-compose.override.yml` locally (it is
+gitignored by convention) with `volumes:` entries pointing each service
+at `./core-api`, `./notifier`, etc.

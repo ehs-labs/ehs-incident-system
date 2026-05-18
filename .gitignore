@@ -54,6 +54,7 @@ yarn-error.log*
 
 # === Docker / K8s ===
 .docker/
+docker-compose.override.yml
 **/local-kubeconfig
 **/*.local.yaml
 
