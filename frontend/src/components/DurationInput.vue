@@ -49,7 +49,10 @@ function update(field: "days" | "hours" | "minutes", value: number | null) {
 </script>
 
 <template>
-  <n-space :size="8" align="center">
+  <n-space
+    :size="8"
+    align="center"
+  >
     <n-input-number
       :value="parts.days"
       :min="0"
@@ -57,7 +60,9 @@ function update(field: "days" | "hours" | "minutes", value: number | null) {
       style="width: 100px"
       @update:value="(v: number | null) => update('days', v)"
     >
-      <template #suffix>d</template>
+      <template #suffix>
+        d
+      </template>
     </n-input-number>
     <n-input-number
       :value="parts.hours"
@@ -67,7 +72,9 @@ function update(field: "days" | "hours" | "minutes", value: number | null) {
       style="width: 100px"
       @update:value="(v: number | null) => update('hours', v)"
     >
-      <template #suffix>h</template>
+      <template #suffix>
+        h
+      </template>
     </n-input-number>
     <n-input-number
       :value="parts.minutes"
@@ -77,7 +84,9 @@ function update(field: "days" | "hours" | "minutes", value: number | null) {
       style="width: 100px"
       @update:value="(v: number | null) => update('minutes', v)"
     >
-      <template #suffix>m</template>
+      <template #suffix>
+        m
+      </template>
     </n-input-number>
   </n-space>
 </template>

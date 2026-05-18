@@ -84,7 +84,10 @@ onMounted(load);
           :key="sev"
           :label="`Severity ${sev}`"
         >
-          <n-space :size="12" align="center">
+          <n-space
+            :size="12"
+            align="center"
+          >
             <duration-input v-model="overrides[sev]" />
             <span style="color: #666">
               = {{ humanizeSeconds(overrides[sev]) }}
