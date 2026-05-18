@@ -1,5 +1,7 @@
 # Key rotation (field cipher)
 
+Last rehearsed: 2026-05-18. Run `bash scripts/key-rotation-drill.sh` to re-verify.
+
 Full sequence diagram in [`docs/flows/key-rotation.md`](../flows/key-rotation.md).
 
 ## TL;DR
@@ -32,3 +34,23 @@ Without it, every rotation would need a coordinated stop. With it, both keys
 can coexist for as long as the rotation takes.
 
 See ADR-0004 for the full reasoning.
+
+## Rehearsal drill
+
+Run a one-shot drill any time you want to verify the gem's rotation behaviour
+before touching production keys:
+
+```bash
+bash scripts/key-rotation-drill.sh
+```
+
+The script:
+1. Generates fresh random v1 and v2 keys.
+2. Encrypts plaintext under v1 (Phase 1 baseline).
+3. Flips `active_version` to v2, encrypts new plaintext, confirms the dual-keyring
+   decrypts both the old v1 and new v2 ciphertexts (Phases 2 and 3).
+4. Retires v1 from the keyring and asserts that the old v1 ciphertext now raises
+   `Ehs::Envelope::UnknownKeyVersion` (Phase 4).
+
+Exits non-zero and prints `FAIL` if any assertion does not hold. The full
+procedure is captured in `docs/flows/key-rotation.md`.
