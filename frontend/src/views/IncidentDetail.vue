@@ -347,7 +347,10 @@ async function actionTransition(
   try {
     await transitionAction(actionId, event);
     message.success(`Action: ${event}`);
-    await loadAux();
+    // Reload the incident itself too: verifying the last corrective action
+    // triggers maybe_close_parent_incident! on the backend, which auto-closes
+    // the incident. loadAux() alone does not refresh incident.value.
+    await Promise.all([loadIncident(), loadAux()]);
   } catch (e) {
     message.error(`Action transition failed: ${(e as ApiError).message}`);
   }
