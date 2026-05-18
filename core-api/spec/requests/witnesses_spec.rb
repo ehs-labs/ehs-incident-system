@@ -1,6 +1,6 @@
-require "rails_helper"
+require "swagger_helper"
 
-RSpec.describe "Api::V1::Witnesses", type: :request do
+RSpec.describe "Witnesses API", type: :request do
   let(:organization) { create(:organization) }
   let(:site)         { create(:site, organization: organization) }
   let(:reporter)     { create(:user, organization: organization) }
@@ -13,93 +13,154 @@ RSpec.describe "Api::V1::Witnesses", type: :request do
     create(:site_membership, site: site, user: admin)
   end
 
-  describe "GET /api/v1/incidents/:incident_id/witnesses" do
+  def jwt_for(u)
+    Warden::JWTAuth::UserEncoder.new.call(u, :user, nil).first
+  end
+
+  path "/api/v1/incidents/{incident_id}/witnesses" do
+    parameter name: :incident_id, in: :path, schema: { type: :integer }, required: true
+    let(:incident_id) { incident.id }
+
+    get "List witnesses for an incident" do
+      tags "witnesses"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
+
+      let(:Authorization) { "Bearer #{jwt_for(admin)}" }
+      let!(:witness) { create(:witness, incident: incident) }
+
+      response "200", "OK — lists witnesses for a visible incident" do
+        run_test! do |response|
+          data = JSON.parse(response.body).fetch("data")
+          expect(data.size).to eq(1)
+          expect(data.first["id"]).to eq(witness.id.to_s)
+        end
+      end
+
+      response "404", "Not Found — user from another org cannot see the incident" do
+        let(:other_org)   { create(:organization) }
+        let(:other_admin) { create(:user, :admin, organization: other_org) }
+        let(:Authorization) { "Bearer #{jwt_for(other_admin)}" }
+        run_test! do |response|
+          expect(response.status).to eq(404)
+        end
+      end
+    end
+
+    post "Add a witness to an incident" do
+      tags "witnesses"
+      consumes "application/json"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
+
+      parameter name: :body, in: :body, required: true, schema: {
+        type: :object,
+        properties: {
+          witness: {
+            type: :object,
+            required: ["name"],
+            properties: {
+              name:      { type: :string },
+              email:     { type: :string, format: :email },
+              phone:     { type: :string },
+              statement: { type: :string }
+            }
+          }
+        }
+      }
+
+      let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
+      let(:body) { { witness: { name: "Eyewitness", email: "eye@example.com", phone: "+61", statement: "I saw it." } } }
+
+      response "201", "Created — reporter adds a witness to their draft" do
+        run_test! do |response|
+          expect(JSON.parse(response.body).dig("data", "attributes", "name")).to eq("Eyewitness")
+        end
+      end
+
+      response "404", "Not Found — non-reporter worker cannot see the incident" do
+        let(:other_worker) { create(:user, organization: organization) }
+        let(:Authorization) { "Bearer #{jwt_for(other_worker)}" }
+        run_test! do |response|
+          expect(response.status).to eq(404)
+        end
+      end
+
+      response "422", "Unprocessable — name is required" do
+        let(:body) { { witness: { name: "" } } }
+        let(:Authorization) { "Bearer #{jwt_for(admin)}" }
+        produces "application/problem+json"
+        run_test! do |response|
+          expect(response.status).to eq(422)
+        end
+      end
+    end
+  end
+
+  path "/api/v1/witnesses/{id}" do
+    parameter name: :id, in: :path, schema: { type: :integer }, required: true
+
     let!(:witness) { create(:witness, incident: incident) }
+    let(:id)       { witness.id }
 
-    it "lists witnesses for a visible incident" do
-      get "/api/v1/incidents/#{incident.id}/witnesses", headers: auth_headers(admin)
+    patch "Update a witness" do
+      tags "witnesses"
+      consumes "application/json"
+      produces "application/json"
+      security [{ bearerAuth: [] }]
 
-      expect(response).to have_http_status(:ok)
-      data = JSON.parse(response.body).fetch("data")
-      expect(data.size).to eq(1)
-      expect(data.first["id"]).to eq(witness.id.to_s)
+      parameter name: :body, in: :body, required: true, schema: {
+        type: :object,
+        properties: {
+          witness: {
+            type: :object,
+            properties: {
+              name:      { type: :string },
+              email:     { type: :string, format: :email },
+              phone:     { type: :string },
+              statement: { type: :string }
+            }
+          }
+        }
+      }
+
+      let(:Authorization) { "Bearer #{jwt_for(admin)}" }
+      let(:body)          { { witness: { name: "New" } } }
+
+      response "200", "OK — admin updates the witness" do
+        run_test! do |response|
+          expect(witness.reload.name).to eq("New")
+        end
+      end
+
+      response "403", "Forbidden — worker cannot edit a witness" do
+        let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
+        produces "application/problem+json"
+        run_test! do |response|
+          expect(response.status).to eq(403)
+        end
+      end
     end
 
-    it "rejects access for users in another org" do
-      other_org   = create(:organization)
-      other_admin = create(:user, :admin, organization: other_org)
+    delete "Delete a witness" do
+      tags "witnesses"
+      security [{ bearerAuth: [] }]
 
-      get "/api/v1/incidents/#{incident.id}/witnesses", headers: auth_headers(other_admin)
-      expect(response).to have_http_status(:not_found)
-    end
-  end
+      let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
 
-  describe "POST /api/v1/incidents/:incident_id/witnesses" do
-    let(:payload) do
-      { witness: { name: "Eyewitness", email: "eye@example.com", phone: "+61", statement: "I saw it." } }
-    end
+      response "204", "No Content — investigator deletes the witness" do
+        run_test! do |response|
+          expect(Witness.where(id: witness.id)).to be_empty
+        end
+      end
 
-    it "allows the reporter to add a witness to their draft" do
-      post "/api/v1/incidents/#{incident.id}/witnesses", params: payload, headers: auth_headers(reporter), as: :json
-
-      expect(response).to have_http_status(:created)
-      expect(JSON.parse(response.body).dig("data", "attributes", "name")).to eq("Eyewitness")
-    end
-
-    it "hides the incident from a worker who is not the reporter" do
-      other_worker = create(:user, organization: organization)
-      post "/api/v1/incidents/#{incident.id}/witnesses", params: payload, headers: auth_headers(other_worker), as: :json
-
-      # The incident is outside the worker's policy_scope, so set_incident
-      # raises RecordNotFound before authorize even runs.
-      expect(response).to have_http_status(:not_found)
-    end
-
-    it "returns 422 when the name is missing" do
-      post "/api/v1/incidents/#{incident.id}/witnesses",
-           params: { witness: { name: "" } },
-           headers: auth_headers(admin),
-           as: :json
-
-      expect(response).to have_http_status(:unprocessable_entity)
-    end
-  end
-
-  describe "PATCH /api/v1/witnesses/:id" do
-    let!(:witness) { create(:witness, incident: incident, name: "Old") }
-
-    it "lets an admin update the witness" do
-      patch "/api/v1/witnesses/#{witness.id}",
-            params: { witness: { name: "New" } },
-            headers: auth_headers(admin),
-            as: :json
-
-      expect(response).to have_http_status(:ok)
-      expect(witness.reload.name).to eq("New")
-    end
-
-    it "forbids a worker from editing a witness" do
-      patch "/api/v1/witnesses/#{witness.id}",
-            params: { witness: { name: "New" } },
-            headers: auth_headers(reporter),
-            as: :json
-
-      expect(response).to have_http_status(:forbidden)
-    end
-  end
-
-  describe "DELETE /api/v1/witnesses/:id" do
-    let!(:witness) { create(:witness, incident: incident) }
-
-    it "lets an investigator delete the witness" do
-      delete "/api/v1/witnesses/#{witness.id}", headers: auth_headers(investigator)
-      expect(response).to have_http_status(:no_content)
-      expect(Witness.where(id: witness.id)).to be_empty
-    end
-
-    it "forbids the reporter from deleting the witness" do
-      delete "/api/v1/witnesses/#{witness.id}", headers: auth_headers(reporter)
-      expect(response).to have_http_status(:forbidden)
+      response "403", "Forbidden — reporter cannot delete a witness" do
+        let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
+        produces "application/problem+json"
+        run_test! do |response|
+          expect(response.status).to eq(403)
+        end
+      end
     end
   end
 end
