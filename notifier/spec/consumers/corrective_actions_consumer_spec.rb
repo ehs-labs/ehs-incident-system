@@ -77,7 +77,20 @@ RSpec.describe CorrectiveActionsConsumer do
   end
 
   # ---------------------------------------------------------------------------
-  # 8. De-dup across CorrectiveActions topic
+  # 8. Malformed message (no event_id) — skips cleanly, no row, no raise
+  # ---------------------------------------------------------------------------
+  it "skips a malformed message that is missing event_id without raising" do
+    karafka.produce(
+      JSON.generate("event_type" => "CorrectiveActionAssigned", "org_id" => org_id),
+      topic: "corrective_actions.v1"
+    )
+
+    expect { consumer.consume }.not_to raise_error
+    expect(Notifier::Models::DeliveryLog.count).to eq(0)
+  end
+
+  # ---------------------------------------------------------------------------
+  # 9. De-dup across CorrectiveActions topic
   # ---------------------------------------------------------------------------
   it "is idempotent: the same (event_id, user_id, channel) triple is not duplicated" do
     payload = JSON.generate(
