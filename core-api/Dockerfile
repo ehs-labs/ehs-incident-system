@@ -8,9 +8,10 @@
 # ---------- Build stage ------------------------------------------------------
 FROM ruby:3.4.1-slim AS build
 
-# Gemfile.lock is generated inside the build until we commit one; once
-# committed, switch BUNDLE_DEPLOYMENT to "1" for reproducible CI builds.
+# Gemfile.lock is committed; BUNDLE_DEPLOYMENT=1 enforces the lockfile and
+# fails loud if it is out of sync with the Gemfile.
 ENV BUNDLE_PATH="/usr/local/bundle" \
+    BUNDLE_DEPLOYMENT="1" \
     BUNDLE_WITHOUT="development:test" \
     RAILS_ENV="production"
 
