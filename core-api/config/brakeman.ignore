@@ -1,0 +1,64 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Dangerous Send",
+      "warning_code": 23,
+      "fingerprint": "51af11b3f383d171f8e74fbbb50e0d710b3cbd5d8b8fdde94645f8cdf589ce53",
+      "check_name": "Send",
+      "message": "User controlled method execution",
+      "file": "app/controllers/api/v1/corrective_actions_controller.rb",
+      "line": 63,
+      "link": "https://brakemanscanner.org/docs/warning_types/dangerous_send/",
+      "code": "policy_scope(CorrectiveAction).find(params[:id]).send(\"#{params[:event].to_s}!\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::CorrectiveActionsController",
+        "method": "transition"
+      },
+      "user_input": "params[:event].to_s",
+      "confidence": "High",
+      "note": "False positive. params[:event] is validated against CorrectiveAction.aasm.events (lines 56-58) before send() is called. Only AASM-defined event names can reach this call. The method is also Pundit-authorized."
+    },
+    {
+      "warning_type": "Dangerous Send",
+      "warning_code": 23,
+      "fingerprint": "7e06d669906b1be890e16e9289f0c0d36ad98ef7823a15cd3d7ccb53aef82e86",
+      "check_name": "Send",
+      "message": "User controlled method execution",
+      "file": "app/controllers/api/v1/incidents_controller.rb",
+      "line": 56,
+      "link": "https://brakemanscanner.org/docs/warning_types/dangerous_send/",
+      "code": "policy_scope(Incident).find(params[:id]).send(\"#{params[:event].to_s}!\")",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::IncidentsController",
+        "method": "transition"
+      },
+      "user_input": "params[:event].to_s",
+      "confidence": "High",
+      "note": "False positive. params[:event] is validated against Incident.aasm.events (lines 47-49) before send() is called. Only AASM-defined event names can reach this call. The method is also Pundit-authorized."
+    },
+    {
+      "warning_type": "Mass Assignment",
+      "warning_code": 105,
+      "fingerprint": "d566cb71f580b0c61b2ff128bddde9c1f618770abf0fa8f52b5caccc73922f74",
+      "check_name": "PermitAttributes",
+      "message": "Potentially dangerous key allowed for mass assignment",
+      "file": "app/controllers/api/v1/admin/users_controller.rb",
+      "line": 77,
+      "link": "https://brakemanscanner.org/docs/warning_types/mass_assignment/",
+      "code": "params.require(:user).permit(:email, :name, :role, :site_ids => ([]))",
+      "render_path": null,
+      "location": {
+        "type": "method",
+        "class": "Api::V1::Admin::UsersController",
+        "method": "invite_params"
+      },
+      "user_input": ":role",
+      "confidence": "Medium",
+      "note": "False positive. This is an admin-only endpoint (Pundit policy requires admin role). Explicitly permitting :role is intentional and required to invite users with a specific role. The invite action authorizes via policy before use."
+    }
+  ]
+}

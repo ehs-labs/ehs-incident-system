@@ -72,7 +72,7 @@ jobs:
 
       - name: Brakeman
         working-directory: core-api
-        run: bundle exec brakeman --no-pager --quiet
+        run: bundle exec brakeman --no-pager --quiet --exit-on-warn --ignore-config config/brakeman.ignore
 
       - name: bundler-audit (core-api)
         working-directory: core-api
@@ -94,11 +94,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
 
-      - name: npm audit
+      - name: pnpm audit
         working-directory: frontend
         run: |
           pnpm install --frozen-lockfile
-          pnpm audit --prod || true # surface issues without failing build
+          pnpm audit --audit-level high
 
   # ---------------------------------------------------------------------------
   # Core-API test suite — RSpec with real Postgres + Redis
