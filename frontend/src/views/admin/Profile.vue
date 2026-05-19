@@ -1,8 +1,54 @@
 <script setup lang="ts">
-import { NCard, NDescriptions, NDescriptionsItem, NSpace, NTag } from "naive-ui";
+import { ref } from "vue";
+import {
+  NCard,
+  NDescriptions,
+  NDescriptionsItem,
+  NSpace,
+  NTag,
+  NButton,
+  NInput,
+  useMessage
+} from "naive-ui";
 import { useAuthStore } from "@/stores/auth";
+import { api } from "@/api/axios";
+import { ApiError } from "@/types/api";
 
 const auth = useAuthStore();
+const message = useMessage();
+
+const editing = ref(false);
+const draftName = ref(auth.user?.name ?? "");
+const saving = ref(false);
+
+function startEdit() {
+  draftName.value = auth.user?.name ?? "";
+  editing.value = true;
+}
+
+function cancelEdit() {
+  editing.value = false;
+}
+
+async function saveName() {
+  const trimmed = draftName.value.trim();
+  if (!trimmed) {
+    message.error("Name cannot be empty");
+    return;
+  }
+  saving.value = true;
+  try {
+    await api.patch("/me", { me: { name: trimmed } });
+    await auth.fetchMe();
+    editing.value = false;
+    message.success("Name updated");
+  } catch (e) {
+    const ae = e as ApiError;
+    message.error(`Could not update name: ${ae.problem?.detail ?? ae.message}`);
+  } finally {
+    saving.value = false;
+  }
+}
 </script>
 
 <template>
@@ -20,7 +66,47 @@ const auth = useAuthStore();
         label-placement="left"
       >
         <n-descriptions-item label="Name">
-          {{ auth.user?.name }}
+          <template v-if="editing">
+            <n-space :size="8">
+              <n-input
+                v-model:value="draftName"
+                placeholder="Your name"
+                :disabled="saving"
+                style="width: 280px"
+                @keyup.enter="saveName"
+              />
+              <n-button
+                type="primary"
+                size="small"
+                :loading="saving"
+                @click="saveName"
+              >
+                Save
+              </n-button>
+              <n-button
+                size="small"
+                :disabled="saving"
+                @click="cancelEdit"
+              >
+                Cancel
+              </n-button>
+            </n-space>
+          </template>
+          <template v-else>
+            <n-space
+              align="center"
+              :size="12"
+            >
+              <span>{{ auth.user?.name || "—" }}</span>
+              <n-button
+                size="tiny"
+                tertiary
+                @click="startEdit"
+              >
+                Edit
+              </n-button>
+            </n-space>
+          </template>
         </n-descriptions-item>
         <n-descriptions-item label="Email">
           {{ auth.user?.email }}

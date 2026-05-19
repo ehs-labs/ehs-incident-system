@@ -72,13 +72,17 @@ const activeKey = computed(() => {
 });
 
 const userMenu = computed(() => [
-  { key: "profile", label: `${auth.user?.email} (${auth.user?.role})` },
+  { key: "header", label: auth.user?.email ?? "", disabled: true },
+  { type: "divider", key: "d0" },
+  { key: "profile", label: "Profile" },
   { type: "divider", key: "d1" },
   { key: "logout", label: "Sign out" }
 ]);
 
 async function onUserSelect(key: string) {
-  if (key === "logout") {
+  if (key === "profile") {
+    router.push("/profile");
+  } else if (key === "logout") {
     await auth.logout();
     router.push("/login");
   }
@@ -140,7 +144,7 @@ async function onUserSelect(key: string) {
             @select="onUserSelect"
           >
             <n-button quaternary>
-              {{ auth.user?.email }} · {{ auth.user?.role }}
+              {{ auth.user?.name || auth.user?.email }} · {{ auth.user?.role }}
             </n-button>
           </n-dropdown>
         </n-space>
