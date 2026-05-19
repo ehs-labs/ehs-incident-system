@@ -1,8 +1,11 @@
-ENV["RACK_ENV"]              ||= "test"
+ENV["RACK_ENV"]              = "test"
 ENV["SKIP_MIGRATION_CHECK"]  ||= "true"
 # 32 zero-bytes encoded as base64 — matches .env.example convention
 ENV["FIELD_CIPHER_KEY"]      ||= "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-ENV["DATABASE_URL"]          ||= "postgres://ehs:devpassword@postgres:5432/ehs_notifier_test"
+# Force-set the test database — `||=` would let an inherited production URL slip
+# through when specs run inside a long-running container, and the per-example
+# truncates below would wipe real data.
+ENV["DATABASE_URL"]          = "postgres://ehs:devpassword@postgres:5432/ehs_notifier_test"
 ENV["KAFKA_BROKERS"]         ||= "kafka:9092"
 ENV["KARAPACE_URL"]          ||= "http://karapace:8081"
 
