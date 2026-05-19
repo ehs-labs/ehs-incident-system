@@ -9,7 +9,6 @@ import {
   NButton,
   NDropdown,
   NSpace,
-  NSelect,
   type MenuOption
 } from "naive-ui";
 import { computed, h } from "vue";
@@ -78,10 +77,6 @@ const userMenu = computed(() => [
   { key: "logout", label: "Sign out" }
 ]);
 
-const siteOptions = computed(() =>
-  auth.sites.map((s) => ({ label: s.name, value: String(s.id) }))
-);
-
 async function onUserSelect(key: string) {
   if (key === "logout") {
     await auth.logout();
@@ -119,14 +114,6 @@ async function onUserSelect(key: string) {
       >
         <n-space align="center">
           <strong style="margin-right: 8px">{{ auth.organization?.name ?? "EHS" }}</strong>
-          <n-select
-            v-if="auth.sites.length > 1"
-            :options="siteOptions"
-            size="small"
-            placeholder="All sites"
-            style="width: 200px"
-            clearable
-          />
         </n-space>
 
         <n-space
