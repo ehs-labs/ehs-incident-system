@@ -39,6 +39,13 @@ export const useNotificationStore = defineStore("notifications", {
     },
     setConnected(value: boolean) {
       this.connected = value;
+    },
+    // Pinia stores survive across component lifecycles, so a prior user's
+    // notifications would otherwise leak into the next user's inbox until a
+    // full page reload. Auth#logout calls this to drop the in-memory list.
+    clear() {
+      this.items = [];
+      this.connected = false;
     }
   }
 });
@@ -94,6 +101,10 @@ export function useNotifications() {
     stopped = true;
     ws.value?.close();
     if (pingTimer) window.clearInterval(pingTimer);
+    // The shell only unmounts on logout (the auth-protected layout is left
+    // behind for /login). Drop the in-memory list so the next user's WS
+    // replay starts from a clean inbox.
+    store.clear();
   });
 
   return { store };
