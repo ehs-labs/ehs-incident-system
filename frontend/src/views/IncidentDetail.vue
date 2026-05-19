@@ -834,10 +834,10 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
               </n-list>
             </n-tab-pane>
 
-            <!-- Versions --------------------------------------------------- -->
+            <!-- Activity log ----------------------------------------------- -->
             <n-tab-pane
               name="versions"
-              tab="Versions"
+              tab="Log"
             >
               <n-list bordered>
                 <n-list-item

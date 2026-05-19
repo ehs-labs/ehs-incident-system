@@ -449,9 +449,9 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
   });
 
   // -------------------------------------------------------------------------
-  // Scenario 5: Versions tab shows the audit trail
+  // Scenario 5: Log tab shows the audit trail
   // -------------------------------------------------------------------------
-  test("Scenario 5 — versions tab shows the audit trail", async ({ browser }) => {
+  test("Scenario 5 — log tab shows the audit trail", async ({ browser }) => {
     const ctx: BrowserContext = await browser.newContext();
     const page = await ctx.newPage();
 
@@ -459,9 +459,9 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       await loginAs(page, INVESTIGATOR_EMAIL, PASSWORD);
       await page.goto(`/incidents/${incidentId}`);
 
-      // Navigate to the Versions tab.
-      // TODO: add data-testid="tab-versions"
-      await clickTab(page, /versions/i);
+      // Navigate to the Log (audit trail) tab.
+      // TODO: add data-testid="tab-log"
+      await clickTab(page, /^log$/i);
 
       // The version list must contain at least the create event plus several
       // update events (state transitions through the lifecycle). Confirm ≥ 3.
