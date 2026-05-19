@@ -5,7 +5,11 @@ resources:
   - ../../base
   - dev-secrets.yaml
 
-# Single replicas everywhere for low-resource local clusters
+# Single replicas everywhere for low-resource local clusters.
+# The HPA's minReplicas (default 2 in the base) also has to come down — it
+# overrides the Deployment's replicas:1, and on docker-desktop without
+# metrics-server installed it can't scale dynamically (CPU target reads as
+# <unknown>) so the floor is the only signal it provides.
 patches:
   - target: { kind: Deployment, name: core-api }
     patch: |
@@ -21,6 +25,24 @@ patches:
     patch: |
       - op: replace
         path: /spec/replicas
+        value: 1
+  - target: { kind: HorizontalPodAutoscaler, name: core-api }
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 1
+  # The PodDisruptionBudget requires minAvailable: 1 on a 2+ replica set,
+  # which is impossible to satisfy on a 1-replica local deployment (any
+  # eviction would violate the budget). Relax to maxUnavailable: 1 here.
+  - target: { kind: PodDisruptionBudget, name: core-api }
+    patch: |
+      - op: remove
+        path: /spec/minAvailable
+      - op: add
+        path: /spec/maxUnavailable
         value: 1
 
 # Use a `dev` image tag for locally-built images
