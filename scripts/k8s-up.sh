@@ -226,8 +226,9 @@ case "$CONTEXT" in
     docker build --target final -t "${COMPOSE_PROJECT}-frontend:k8s" frontend/
 
     # Unique tag so the kubelet picks up rebuilds; sticky `:dev` would leave it
-    # on the previous digest.
-    local tag="dev-$(date +%s)"
+    # on the previous digest. (`local` is reserved for inside functions; we're
+    # in a `case` branch at the script's top level here.)
+    tag="dev-$(date +%s)"
     sed -i.bak -E "s|(newTag: )dev(-[0-9]+)?$|\\1${tag}|g" k8s/overlays/local/kustomization.yaml
     rm -f k8s/overlays/local/kustomization.yaml.bak
 
@@ -246,7 +247,7 @@ case "$CONTEXT" in
     log "Building frontend (final stage, nginx) for Kubernetes..."
     docker build --target final -t "${COMPOSE_PROJECT}-frontend:k8s" frontend/
 
-    local tag="dev-$(date +%s)"
+    tag="dev-$(date +%s)"
     sed -i.bak -E "s|(newTag: )dev(-[0-9]+)?$|\\1${tag}|g" k8s/overlays/local/kustomization.yaml
     rm -f k8s/overlays/local/kustomization.yaml.bak
 
