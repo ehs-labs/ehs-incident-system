@@ -17,52 +17,78 @@ module Handlers
 
       handler.call(event)
     end
+
+    # Resolve actor_id -> human name via users_mirror so notification bodies
+    # read like "Wendy Worker reported ..." rather than referring to ids.
+    # Falls back to "System" for the literal "system" actor (background jobs)
+    # and to "Someone" when the actor row hasn't propagated yet.
+    def actor_name(event)
+      actor_id = event["actor_id"]
+      return "System" if actor_id.nil? || actor_id.to_s == "system"
+      Notifier::Models::UserMirror[user_id: actor_id.to_s]&.name || "Someone"
+    end
   end
 end
 
 # ---- Register handlers -------------------------------------------------------
 
 Handlers::DomainEvent.register("IncidentSubmitted") do |event|
+  incident_id = event.dig("subject", "incident_id")
   Handlers::IncidentNotifier.notify(
     event:     event,
-    title:     "Incident #{event.dig('subject', 'incident_id')} submitted",
-    body:      "Severity #{event.dig('subject', 'severity')}: #{event.dig('subject', 'summary')}",
-    link_path: "/incidents/#{event.dig('subject', 'incident_id')}"
+    title:     "Incident ##{incident_id} submitted",
+    body:      "#{Handlers::DomainEvent.actor_name(event)} reported a new incident at severity #{event.dig('subject', 'severity')}: #{event.dig('subject', 'summary')}",
+    link_path: "/incidents/#{incident_id}"
   )
 end
 
 Handlers::DomainEvent.register("IncidentAssigned") do |event|
+  incident_id = event.dig("subject", "incident_id")
   Handlers::IncidentNotifier.notify(
     event:     event,
-    title:     "Incident assigned to you",
-    body:      "You have been assigned to investigate incident #{event.dig('subject', 'incident_id')} (severity #{event.dig('subject', 'severity')}).",
-    link_path: "/incidents/#{event.dig('subject', 'incident_id')}"
+    title:     "Incident ##{incident_id} assigned to you",
+    body:      "#{Handlers::DomainEvent.actor_name(event)} assigned incident ##{incident_id} (severity #{event.dig('subject', 'severity')}) to you to investigate.",
+    link_path: "/incidents/#{incident_id}"
+  )
+end
+
+Handlers::DomainEvent.register("IncidentClosed") do |event|
+  incident_id = event.dig("subject", "incident_id")
+  Handlers::IncidentNotifier.notify(
+    event:     event,
+    title:     "Incident ##{incident_id} closed",
+    body:      "#{Handlers::DomainEvent.actor_name(event)} closed incident ##{incident_id} (severity #{event.dig('subject', 'severity')}).",
+    link_path: "/incidents/#{incident_id}"
   )
 end
 
 Handlers::DomainEvent.register("CorrectiveActionAssigned") do |event|
+  incident_id = event.dig("subject", "incident_id")
   Handlers::IncidentNotifier.notify(
     event:     event,
-    title:     "Corrective action assigned",
-    body:      "Due by #{event.dig('subject', 'due_date')}: #{event.dig('subject', 'title')}",
-    link_path: "/actions/#{event.dig('subject', 'action_id')}"
+    title:     "Corrective action assigned to you",
+    body:      "#{Handlers::DomainEvent.actor_name(event)} assigned you a corrective action on incident ##{incident_id}: \"#{event.dig('subject', 'title')}\" (due #{event.dig('subject', 'due_date')}).",
+    link_path: "/incidents/#{incident_id}"
   )
 end
 
 Handlers::DomainEvent.register("CorrectiveActionOverdue") do |event|
+  incident_id = event.dig("subject", "incident_id")
+  days = event.dig("subject", "days_overdue")
   Handlers::IncidentNotifier.notify(
     event:     event,
     title:     "Corrective action overdue",
-    body:      "Action is #{event.dig('subject', 'days_overdue')} day(s) past due.",
-    link_path: "/actions/#{event.dig('subject', 'action_id')}"
+    body:      "A corrective action on incident ##{incident_id} is #{days} day#{days == 1 ? '' : 's'} past its due date.",
+    link_path: "/incidents/#{incident_id}"
   )
 end
 
 Handlers::DomainEvent.register("SlaBreached") do |event|
+  incident_id = event.dig("subject", "incident_id")
   Handlers::IncidentNotifier.notify(
     event:     event,
-    title:     "SLA breached",
-    body:      "Incident #{event.dig('subject', 'incident_id')} (severity #{event.dig('subject', 'severity')}) breached its #{event.dig('subject', 'sla_kind').downcase} SLA.",
-    link_path: "/incidents/#{event.dig('subject', 'incident_id')}"
+    title:     "Incident ##{incident_id} breached its #{event.dig('subject', 'sla_kind').downcase} SLA",
+    body:      "Incident ##{incident_id} (severity #{event.dig('subject', 'severity')}) is past its #{event.dig('subject', 'sla_kind').downcase} SLA window and still needs action.",
+    link_path: "/incidents/#{incident_id}"
   )
 end
