@@ -9,6 +9,9 @@ RSpec.describe IncidentsConsumer do
   let(:org_id)       { "org-1" }
   let(:reporter_id)  { "user-reporter" }
   let(:assignee_id)  { "user-assignee" }
+  # IncidentNotifier strips actor_id from recipients to avoid self-notifications,
+  # so tests pick an actor distinct from any recipient under test.
+  let(:third_party_actor) { "user-other" }
 
   before do
     Notifier::Models::UserMirror.upsert(
@@ -34,14 +37,14 @@ RSpec.describe IncidentsConsumer do
   # Helpers
   # ---------------------------------------------------------------------------
 
-  def produce_incident_event(event_id:, event_type:, recipient_ids:, subject: {})
+  def produce_incident_event(event_id:, event_type:, recipient_ids:, subject: {}, actor_id: third_party_actor)
     payload = JSON.generate(
       "event_id"           => event_id,
       "event_type"         => event_type,
       "version"            => 1,
       "occurred_at"        => Time.now.utc.iso8601,
       "org_id"             => org_id,
-      "actor_id"           => reporter_id,
+      "actor_id"           => actor_id,
       "subject"            => { "incident_id" => "inc-1", "severity" => 2, "summary" => "Spill" }.merge(subject),
       "recipient_user_ids" => recipient_ids
     )
@@ -109,7 +112,7 @@ RSpec.describe IncidentsConsumer do
       JSON.generate(
         "event_id" => "evt-dedup-1", "event_type" => "IncidentSubmitted",
         "version" => 1, "occurred_at" => Time.now.utc.iso8601, "org_id" => org_id,
-        "actor_id" => reporter_id,
+        "actor_id" => third_party_actor,
         "subject" => { "incident_id" => "inc-1", "severity" => 2, "summary" => "Spill" },
         "recipient_user_ids" => [reporter_id]
       ),

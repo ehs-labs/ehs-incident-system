@@ -148,7 +148,10 @@ class Incident < ApplicationRecord
   end
 
   # Users who should be notified about a fresh submission: investigators &
-  # admins on the same site, plus the reporter.
+  # admins on the same site. The reporter sees their own incident on the
+  # dashboard — they don't need a "needs triage" notification too, and the
+  # actor-filter in Notifier::IncidentNotifier strips actor_id anyway when
+  # an investigator/admin reports an incident themselves.
   def triage_recipients
     return [] unless site
 
@@ -158,7 +161,7 @@ class Incident < ApplicationRecord
         .where(site_memberships: { site_id: site_id })
         .where(deleted_at: nil)
         .distinct
-        .pluck(:id) | [reporter_id].compact
+        .pluck(:id)
   end
 
   def publish_event!(event_type, recipient_user_ids:)

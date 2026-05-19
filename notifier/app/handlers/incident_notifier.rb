@@ -10,7 +10,11 @@ module Handlers
       event_id   = event.fetch("event_id")
       event_type = event.fetch("event_type")
 
-      recipient_ids = event["recipient_user_ids"] || []
+      # Skip self-notifications: the user who triggered the action already
+      # knows about it. actor_id is a stringified user_id from EventBus, or
+      # the literal "system" for background jobs — the string-compare is
+      # safe in both cases.
+      recipient_ids = (event["recipient_user_ids"] || []) - [event["actor_id"]].compact
       recipients    = Notifier::Models::UserMirror.where(user_id: recipient_ids).all
 
       recipients.each do |user|

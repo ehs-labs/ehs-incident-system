@@ -4,7 +4,8 @@ require "spec_helper"
 # and delivery_log claim/idempotency wiring, without actually sending email
 # (the EmailChannel and InAppChannel are stubbed).
 RSpec.describe Handlers::IncidentNotifier do
-  let(:user_id) { "9001" }
+  let(:user_id)  { "9001" }
+  let(:actor_id) { "9002" }
 
   before do
     Notifier::Models::UserMirror.upsert(
@@ -21,8 +22,8 @@ RSpec.describe Handlers::IncidentNotifier do
       "version"            => 1,
       "occurred_at"        => Time.now.utc,
       "org_id"             => "1",
-      "actor_id"           => user_id,
-      "subject"            => { "incident_id" => "42", "severity" => 2, "summary" => "Test", "site_id" => "1", "reporter_id" => user_id },
+      "actor_id"           => actor_id,
+      "subject"            => { "incident_id" => "42", "severity" => 2, "summary" => "Test", "site_id" => "1", "reporter_id" => actor_id },
       "recipient_user_ids" => [user_id]
     }
   end
@@ -56,5 +57,11 @@ RSpec.describe Handlers::IncidentNotifier do
     end
 
     expect(Notifier::Models::DeliveryLog.where(event_id: event.fetch("event_id")).count).to eq(2) # email + in_app, one each
+  end
+
+  it "skips self-notifications: actor is filtered out of recipient_user_ids" do
+    self_event = event.merge("actor_id" => user_id, "recipient_user_ids" => [user_id])
+    described_class.notify(event: self_event, title: "T", body: "B", link_path: "/x")
+    expect(Notifier::Models::DeliveryLog.where(event_id: self_event.fetch("event_id")).count).to eq(0)
   end
 end

@@ -6,6 +6,8 @@ RSpec.describe CorrectiveActionsConsumer do
   let(:org_id)      { "org-2" }
   let(:reporter_id) { "user-ca-reporter" }
   let(:assignee_id) { "user-ca-assignee" }
+  # IncidentNotifier strips actor_id from recipients to avoid self-notifications.
+  let(:third_party_actor) { "user-ca-actor" }
 
   before do
     Notifier::Models::UserMirror.upsert(
@@ -24,14 +26,14 @@ RSpec.describe CorrectiveActionsConsumer do
     stub_const("Notifier::Web::WsServer", Module.new { def self.push(*); end })
   end
 
-  def produce_ca_event(event_id:, event_type:, recipient_ids:, subject: {})
+  def produce_ca_event(event_id:, event_type:, recipient_ids:, subject: {}, actor_id: third_party_actor)
     payload = JSON.generate(
       "event_id"           => event_id,
       "event_type"         => event_type,
       "version"            => 1,
       "occurred_at"        => Time.now.utc.iso8601,
       "org_id"             => org_id,
-      "actor_id"           => assignee_id,
+      "actor_id"           => actor_id,
       "subject"            => {
         "action_id" => "ca-99", "title" => "Fix valve", "due_date" => "2026-06-01"
       }.merge(subject),
@@ -96,7 +98,7 @@ RSpec.describe CorrectiveActionsConsumer do
     payload = JSON.generate(
       "event_id" => "evt-ca-dedup-1", "event_type" => "CorrectiveActionAssigned",
       "version" => 1, "occurred_at" => Time.now.utc.iso8601, "org_id" => org_id,
-      "actor_id" => assignee_id,
+      "actor_id" => third_party_actor,
       "subject" => { "action_id" => "ca-99", "title" => "Fix valve", "due_date" => "2026-06-01" },
       "recipient_user_ids" => [assignee_id]
     )
