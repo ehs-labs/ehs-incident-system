@@ -154,16 +154,33 @@ apply_and_wait() {
   log "Applying k8s/overlays/local via Kustomize..."
   kustomize_build k8s/overlays/local | kubectl apply -f -
 
-  log "Waiting for migration jobs..."
+  log "Waiting for migration + bucket-init jobs..."
   kubectl -n "$NAMESPACE" wait --for=condition=Complete job/db-migrate-core-api --timeout=5m \
     || warn "db-migrate-core-api not yet complete — check: kubectl -n ${NAMESPACE} logs job/db-migrate-core-api"
   kubectl -n "$NAMESPACE" wait --for=condition=Complete job/db-migrate-notifier --timeout=5m \
     || warn "db-migrate-notifier not yet complete — check: kubectl -n ${NAMESPACE} logs job/db-migrate-notifier"
+  kubectl -n "$NAMESPACE" wait --for=condition=Complete job/minio-init --timeout=3m \
+    || warn "minio-init not yet complete — check: kubectl -n ${NAMESPACE} logs job/minio-init"
 
   log "Waiting for deployment rollouts..."
   kubectl -n "$NAMESPACE" rollout status deployment/core-api  --timeout=5m
   kubectl -n "$NAMESPACE" rollout status deployment/notifier  --timeout=5m
   kubectl -n "$NAMESPACE" rollout status deployment/frontend  --timeout=5m
+}
+
+# ---------------------------------------------------------------------------
+# Seed demo data
+#
+# Mirrors scripts/seed-demo.sh for the docker-compose path. The `db:seed:demo`
+# rake task (core-api/lib/tasks/seed_demo.rake) loads db/demo_seeds.rb, which
+# is idempotent — it destroy_alls prior demo records before reseeding — so
+# running this on every bring-up is safe.
+# ---------------------------------------------------------------------------
+seed_demo() {
+  log "Seeding demo data (acme-manufacturing org, 3 sites, 7 users, incidents)..."
+  if ! kubectl -n "$NAMESPACE" exec deploy/core-api -- bin/rails db:seed:demo; then
+    warn "db:seed:demo failed — run manually with: kubectl -n ${NAMESPACE} exec deploy/core-api -- bin/rails db:seed:demo"
+  fi
 }
 
 print_instructions() {
@@ -307,4 +324,5 @@ case "$CONTEXT" in
 esac
 
 apply_and_wait
+seed_demo
 print_instructions
