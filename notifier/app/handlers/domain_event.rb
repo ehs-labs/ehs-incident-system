@@ -57,7 +57,7 @@ Handlers::DomainEvent.register("IncidentClosed") do |event|
   Handlers::IncidentNotifier.notify(
     event:     event,
     title:     "Incident ##{incident_id} closed",
-    body:      "#{Handlers::DomainEvent.actor_name(event)} closed incident ##{incident_id} (severity #{event.dig('subject', 'severity')}).",
+    body:      "Your incident ##{incident_id} (severity #{event.dig('subject', 'severity')}) has been resolved and closed by #{Handlers::DomainEvent.actor_name(event)}.",
     link_path: "/incidents/#{incident_id}"
   )
 end
