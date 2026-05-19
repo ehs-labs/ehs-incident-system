@@ -2,9 +2,10 @@ import { ref, onUnmounted } from "vue";
 import { defineStore } from "pinia";
 import { useAuthStore } from "@/stores/auth";
 
-interface Notification {
+export interface Notification {
+  // delivery_log.id is an integer on the wire; normalize via String() at upsert.
   id: string;
-  kind: string;
+  event_type: string;
   title: string;
   body: string;
   link: string;
@@ -25,9 +26,12 @@ export const useNotificationStore = defineStore("notifications", {
   },
   actions: {
     upsert(n: Notification) {
-      const idx = this.items.findIndex((x) => x.id === n.id);
-      if (idx >= 0) this.items[idx] = n;
-      else this.items.unshift(n);
+      // Backend sends delivery_log.id as an integer; coerce to string so the
+      // replay-on-connect frame and the live-push frame de-dup correctly.
+      const normalized: Notification = { ...n, id: String(n.id) };
+      const idx = this.items.findIndex((x) => x.id === normalized.id);
+      if (idx >= 0) this.items[idx] = normalized;
+      else this.items.unshift(normalized);
     },
     markRead(id: string) {
       const n = this.items.find((x) => x.id === id);
