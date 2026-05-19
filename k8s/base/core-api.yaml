@@ -20,6 +20,30 @@ spec:
     metadata:
       labels: { app: core-api }
     spec:
+      # Wait for postgres to accept connections AND for db-migrate-core-api to
+      # have populated schema_migrations. Without this the app would boot
+      # before migrations finish, the check_migrations initializer would
+      # abort, and the pod would CrashLoopBackOff its way to readiness.
+      initContainers:
+        - name: wait-for-app-db
+          image: postgres:16-alpine
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            - secretRef:    { name: ehs-secrets }
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_APP_DB" -q; do
+                echo "waiting for postgres TCP..."; sleep 2
+              done
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              until psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_APP_DB" -tAc \
+                   "select count(*) > 0 from schema_migrations" 2>/dev/null | grep -q '^t'; do
+                echo "waiting for migrations..."; sleep 2
+              done
+              echo "app db ready"
       containers:
         - name: core-api
           image: ghcr.io/ehs-labs/ehs-core-api:latest
@@ -57,6 +81,38 @@ spec:
   template:
     metadata: { labels: { app: sidekiq } }
     spec:
+      # Sidekiq's OutboxShipperJob produces to Kafka; both DB and Kafka topics
+      # must exist before the worker starts ticking.
+      initContainers:
+        - name: wait-for-app-db
+          image: postgres:16-alpine
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            - secretRef:    { name: ehs-secrets }
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_APP_DB" -q; do
+                echo "waiting for postgres TCP..."; sleep 2
+              done
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              until psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_APP_DB" -tAc \
+                   "select count(*) > 0 from schema_migrations" 2>/dev/null | grep -q '^t'; do
+                echo "waiting for migrations..."; sleep 2
+              done
+              echo "app db ready"
+        - name: wait-for-kafka-topics
+          image: bitnamilegacy/kafka:3.8.1
+          command:
+            - sh
+            - -c
+            - |
+              until kafka-topics.sh --bootstrap-server kafka:9092 --list 2>/dev/null | grep -q "^incidents.v1$"; do
+                echo "waiting for kafka topics..."; sleep 2
+              done
+              echo "kafka topics ready"
       containers:
         - name: sidekiq
           image: ghcr.io/ehs-labs/ehs-core-api:latest

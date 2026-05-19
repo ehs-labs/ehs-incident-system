@@ -18,6 +18,30 @@ spec:
   template:
     metadata: { labels: { app: notifier } }
     spec:
+      # Notifier uses Sequel, which writes its migration version to
+      # `schema_info` (not Rails' schema_migrations). Wait until that row
+      # exists before starting the Falcon process, otherwise boot.rb's
+      # migration-pending tripwire aborts and we crash-loop.
+      initContainers:
+        - name: wait-for-notifier-db
+          image: postgres:16-alpine
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            - secretRef:    { name: ehs-secrets }
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_NOTIFIER_DB" -q; do
+                echo "waiting for postgres TCP..."; sleep 2
+              done
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              until psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_NOTIFIER_DB" -tAc \
+                   "select count(*) > 0 from schema_info" 2>/dev/null | grep -q '^t'; do
+                echo "waiting for migrations..."; sleep 2
+              done
+              echo "notifier db ready"
       containers:
         - name: notifier
           image: ghcr.io/ehs-labs/ehs-notifier:latest
@@ -44,6 +68,40 @@ spec:
   template:
     metadata: { labels: { app: notifier-karafka } }
     spec:
+      # Karafka starts subscribing immediately; if the topics aren't there
+      # yet it bumps its consumer-group offsets to the current high-watermark
+      # and then misses anything published later in the same instant. Wait
+      # for both the notifier DB AND the four Kafka topics before launching.
+      initContainers:
+        - name: wait-for-notifier-db
+          image: postgres:16-alpine
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            - secretRef:    { name: ehs-secrets }
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_NOTIFIER_DB" -q; do
+                echo "waiting for postgres TCP..."; sleep 2
+              done
+              export PGPASSWORD="$POSTGRES_PASSWORD"
+              until psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_NOTIFIER_DB" -tAc \
+                   "select count(*) > 0 from schema_info" 2>/dev/null | grep -q '^t'; do
+                echo "waiting for migrations..."; sleep 2
+              done
+              echo "notifier db ready"
+        - name: wait-for-kafka-topics
+          image: bitnamilegacy/kafka:3.8.1
+          command:
+            - sh
+            - -c
+            - |
+              until kafka-topics.sh --bootstrap-server kafka:9092 --list 2>/dev/null | grep -q "^incidents.v1$"; do
+                echo "waiting for kafka topics..."; sleep 2
+              done
+              echo "kafka topics ready"
       containers:
         - name: karafka
           image: ghcr.io/ehs-labs/ehs-notifier:latest
