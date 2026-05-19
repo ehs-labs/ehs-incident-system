@@ -10,9 +10,13 @@ overlay and image pull behaviour as a remote cluster.
 ### Prerequisites
 
 ```bash
-brew install kind kubectl kustomize
+brew install kind kubectl
 # docker must already be running (Docker Desktop or OrbStack)
 ```
+
+Standalone `kustomize` is optional — `k8s-up.sh` falls back to the kustomize
+that ships embedded in `kubectl` (`kubectl kustomize ...`). The overlay only
+uses standard Kustomize features, so both work the same way.
 
 ### One-liner
 

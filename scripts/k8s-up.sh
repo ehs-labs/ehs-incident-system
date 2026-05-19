@@ -36,11 +36,23 @@ COMPOSE_PROJECT=ehs-incident-system
 
 # ---------------------------------------------------------------------------
 # Tool checks
+#
+# Standalone kustomize is preferred when available, but kubectl has shipped an
+# embedded kustomize since v1.14 (exposed via `kubectl kustomize`). The overlay
+# only uses standard features (resources, patches, images, namespace) so the
+# embedded build is fine.
 # ---------------------------------------------------------------------------
 check_tools() {
-  command -v kubectl   >/dev/null || die "kubectl is required (https://kubernetes.io/docs/tasks/tools/)"
-  command -v kustomize >/dev/null || die "kustomize is required (https://kustomize.io)"
-  command -v docker    >/dev/null || die "docker is required (https://docs.docker.com/get-docker/)"
+  command -v kubectl >/dev/null || die "kubectl is required (https://kubernetes.io/docs/tasks/tools/)"
+  command -v docker  >/dev/null || die "docker is required (https://docs.docker.com/get-docker/)"
+
+  if command -v kustomize >/dev/null; then
+    kustomize_build() { kustomize build "$@"; }
+    log "Using standalone kustomize: $(kustomize version 2>/dev/null | head -1)"
+  else
+    kustomize_build() { kubectl kustomize "$@"; }
+    log "Using kubectl-embedded kustomize."
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -122,7 +134,7 @@ build_and_load_images() {
 # ---------------------------------------------------------------------------
 apply_and_wait() {
   log "Applying k8s/overlays/local via Kustomize..."
-  kustomize build k8s/overlays/local | kubectl apply -f -
+  kustomize_build k8s/overlays/local | kubectl apply -f -
 
   log "Waiting for migration jobs..."
   kubectl -n "$NAMESPACE" wait --for=condition=Complete job/db-migrate-core-api --timeout=5m \
