@@ -1,8 +1,9 @@
 # ============================================================================
 # Least-privilege NetworkPolicies.
-# Requires a CNI that supports NetworkPolicy (Calico, Cilium, etc.).
-# Docker Desktop's default CNI does NOT enforce these — they're a portfolio
-# signal here; the cloud overlay uses a real CNI.
+# Requires a CNI that supports NetworkPolicy (Calico, Cilium, etc.). Older
+# Docker Desktop CNI versions were no-ops; recent ones DO enforce these, so
+# every pod that needs to reach postgres/kafka/karapace must carry one of the
+# allow-listed app labels below. Affects bootstrap Jobs too.
 # ============================================================================
 
 apiVersion: networking.k8s.io/v1
@@ -35,6 +36,8 @@ spec:
         - podSelector: { matchLabels: { app: sidekiq } }
         - podSelector: { matchLabels: { app: notifier-karafka } }
         - podSelector: { matchLabels: { app: karapace } }
+        # The one-shot bootstrap Job creates topics on bring-up.
+        - podSelector: { matchLabels: { app: kafka-bootstrap } }
       ports: [{ protocol: TCP, port: 9092 }]
 ---
 apiVersion: networking.k8s.io/v1

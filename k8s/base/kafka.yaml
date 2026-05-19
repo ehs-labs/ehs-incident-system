@@ -89,3 +89,50 @@ spec:
             httpGet: { path: /_health, port: 8081 }
             initialDelaySeconds: 60
             periodSeconds: 30
+---
+# ============================================================================
+# Kafka bootstrap — ensure topics exist.
+#
+# Kafka in this overlay has KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false (we want
+# explicit topic management rather than implicit creation on first produce),
+# so we have to create them ourselves. Mirrors the loop in scripts/bootstrap.sh
+# for the docker-compose path. The Job's command is idempotent
+# (--if-not-exists), so a repeated `kubectl apply` reuses the existing Job;
+# recreate it by deleting first if you need to force a re-run.
+# ============================================================================
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-bootstrap
+  namespace: ehs
+spec:
+  # The bootstrap script does its own polling, so a single attempt is normally
+  # enough; allow a couple of retries in case the Kafka StatefulSet hasn't
+  # opened port 9092 yet.
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      # The Kafka NetworkPolicy whitelists ingress only from a few app labels;
+      # without this the bootstrap pod's TCP to kafka:9092 times out on CNIs
+      # that enforce NetworkPolicy (Docker Desktop newer versions do).
+      labels: { app: kafka-bootstrap }
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: bootstrap
+          image: bitnamilegacy/kafka:3.8.1
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do
+                echo "waiting for kafka..."; sleep 3
+              done
+              for t in incidents.v1 corrective_actions.v1 users.v1 system.v1; do
+                kafka-topics.sh --bootstrap-server kafka:9092 \
+                  --create --if-not-exists \
+                  --topic "$t" --partitions 3 --replication-factor 1
+              done
+              echo "topics ready"

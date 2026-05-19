@@ -154,13 +154,15 @@ apply_and_wait() {
   log "Applying k8s/overlays/local via Kustomize..."
   kustomize_build k8s/overlays/local | kubectl apply -f -
 
-  log "Waiting for migration + bucket-init jobs..."
+  log "Waiting for one-shot bootstrap jobs..."
   kubectl -n "$NAMESPACE" wait --for=condition=Complete job/db-migrate-core-api --timeout=5m \
     || warn "db-migrate-core-api not yet complete — check: kubectl -n ${NAMESPACE} logs job/db-migrate-core-api"
   kubectl -n "$NAMESPACE" wait --for=condition=Complete job/db-migrate-notifier --timeout=5m \
     || warn "db-migrate-notifier not yet complete — check: kubectl -n ${NAMESPACE} logs job/db-migrate-notifier"
   kubectl -n "$NAMESPACE" wait --for=condition=Complete job/minio-init --timeout=3m \
     || warn "minio-init not yet complete — check: kubectl -n ${NAMESPACE} logs job/minio-init"
+  kubectl -n "$NAMESPACE" wait --for=condition=Complete job/kafka-bootstrap --timeout=3m \
+    || warn "kafka-bootstrap not yet complete — check: kubectl -n ${NAMESPACE} logs job/kafka-bootstrap"
 
   log "Waiting for deployment rollouts..."
   kubectl -n "$NAMESPACE" rollout status deployment/core-api  --timeout=5m
