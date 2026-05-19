@@ -77,18 +77,24 @@ ensure_kind() {
 }
 
 # ---------------------------------------------------------------------------
-# nginx-ingress (kind only)
+# nginx-ingress
 #
-# docker-desktop and minikube provide ingress via separate addons; kind ships
-# without a controller, so the Ingress in k8s/base/ingress.yaml has nothing
-# to process unless we install one here. kubectl apply is idempotent, so this
-# is safe to run on every invocation.
+# Kind and docker-desktop ship without a controller, so the Ingress in
+# k8s/base/ingress.yaml has nothing to process unless we install one. The two
+# providers need different manifests:
+#   - kind:           uses NodePort + hostPort mapping (port 8080 on host).
+#   - docker-desktop: uses LoadBalancer, which Docker Desktop exposes at
+#                     127.0.0.1:80 directly.
+# Minikube users typically run `minikube addons enable ingress` themselves.
+# kubectl apply is idempotent, so this is safe to run on every invocation.
 # ---------------------------------------------------------------------------
-INGRESS_MANIFEST_URL="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
+INGRESS_MANIFEST_KIND="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml"
+INGRESS_MANIFEST_CLOUD="https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/cloud/deploy.yaml"
 
 install_ingress() {
-  log "Installing nginx-ingress controller (kind provider manifest)..."
-  kubectl apply -f "$INGRESS_MANIFEST_URL"
+  local manifest="$1"
+  log "Installing nginx-ingress controller..."
+  kubectl apply -f "$manifest"
 
   log "Waiting for nginx-ingress controller pod to become Ready..."
   kubectl -n ingress-nginx wait --for=condition=Ready pod \
@@ -161,7 +167,27 @@ apply_and_wait() {
 }
 
 print_instructions() {
-  local host_entry="127.0.0.1   app.ehs.local"
+  local host_entry="127.0.0.1   app.ehs.test"
+  local ingress_url tear_down
+
+  case "${PROVIDER:-}" in
+    kind)
+      ingress_url="http://app.ehs.test:8080   # kind maps node 80 -> host 8080"
+      tear_down="kind delete cluster --name ${CLUSTER_NAME}"
+      ;;
+    docker-desktop)
+      ingress_url="http://app.ehs.test       # Docker Desktop exposes LoadBalancer on localhost:80"
+      tear_down="kubectl delete namespace ${NAMESPACE}"
+      ;;
+    minikube)
+      ingress_url="http://app.ehs.test       # via minikube tunnel (run separately if needed)"
+      tear_down="kubectl delete namespace ${NAMESPACE}   # or 'minikube delete' for a full wipe"
+      ;;
+    *)
+      ingress_url="http://app.ehs.test       # depends on your cluster's ingress provider"
+      tear_down="kubectl delete namespace ${NAMESPACE}"
+      ;;
+  esac
 
   cat <<EOF
 
@@ -170,8 +196,8 @@ ${GREEN}Stack is up.${RESET}
   Add to /etc/hosts (if not already present):
     ${host_entry}
 
-  Kind path — reach the app via nginx-ingress on host port 8080:
-    http://app.ehs.local:8080
+  Reach the app via nginx-ingress:
+    ${ingress_url}
 
   Or port-forward directly (useful for debugging):
     kubectl -n ${NAMESPACE} port-forward svc/frontend 5173:80
@@ -179,7 +205,7 @@ ${GREEN}Stack is up.${RESET}
     kubectl -n ${NAMESPACE} port-forward svc/notifier 4000:4000
 
   Tear down:
-    kind delete cluster --name ${CLUSTER_NAME}
+    ${tear_down}
 
 EOF
 }
@@ -196,28 +222,32 @@ case "$CONTEXT" in
   "kind-${CLUSTER_NAME}")
     # Already on the right kind cluster — still rebuild and reload images so
     # the cluster picks up any local code changes.
+    PROVIDER=kind
     log "Resuming on existing kind cluster: ${CONTEXT}"
-    install_ingress
+    install_ingress "$INGRESS_MANIFEST_KIND"
     build_and_load_images
     ;;
 
   kind-*)
     # A different kind cluster is active; switch to ours or create it.
+    PROVIDER=kind
     log "Different kind cluster active ('${CONTEXT}'). Switching to '${CLUSTER_NAME}'..."
     ensure_kind
-    install_ingress
+    install_ingress "$INGRESS_MANIFEST_KIND"
     build_and_load_images
     ;;
 
   "")
     # No context at all — create the kind cluster.
+    PROVIDER=kind
     log "No active kubectl context. Creating kind cluster '${CLUSTER_NAME}'..."
     ensure_kind
-    install_ingress
+    install_ingress "$INGRESS_MANIFEST_KIND"
     build_and_load_images
     ;;
 
   docker-desktop)
+    PROVIDER=docker-desktop
     log "Using Docker Desktop's built-in Kubernetes."
     log "Skipping kind image load — Docker Desktop shares the local daemon."
     log "Building application images via docker compose..."
@@ -235,9 +265,15 @@ case "$CONTEXT" in
     docker tag "${COMPOSE_PROJECT}-core-api"       "ghcr.io/ehs-labs/ehs-core-api:${tag}"
     docker tag "${COMPOSE_PROJECT}-notifier"       "ghcr.io/ehs-labs/ehs-notifier:${tag}"
     docker tag "${COMPOSE_PROJECT}-frontend:k8s"   "ghcr.io/ehs-labs/ehs-frontend:${tag}"
+
+    # Docker Desktop ships no ingress controller; install one so app.ehs.test
+    # resolves to the Ingress in k8s/base/. The cloud manifest binds a
+    # LoadBalancer Service, which Docker Desktop exposes at 127.0.0.1:80.
+    install_ingress "$INGRESS_MANIFEST_CLOUD"
     ;;
 
   minikube)
+    PROVIDER=minikube
     log "Using minikube."
     log "Building images into minikube's Docker daemon..."
     # Build directly inside minikube's Docker daemon so no explicit image push

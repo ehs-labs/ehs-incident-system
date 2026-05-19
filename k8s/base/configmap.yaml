@@ -20,8 +20,8 @@ data:
   SMTP_FROM: no-reply@ehs.local
 
   # ---- App config ------------------------------------------------------------
-  APP_HOST: http://app.ehs.local
-  NOTIFIER_WS_URL: ws://app.ehs.local/ws
+  APP_HOST: http://app.ehs.test
+  NOTIFIER_WS_URL: ws://app.ehs.test/ws
   SIGNUP_ENABLED: "true"
   STRICT_MIGRATION_CHECK: "true"
   RAILS_ENV: production

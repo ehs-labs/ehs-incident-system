@@ -9,7 +9,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: app.ehs.local
+    - host: app.ehs.test
       http:
         paths:
           - path: /api

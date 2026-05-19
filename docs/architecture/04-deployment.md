@@ -4,7 +4,7 @@
 flowchart TB
     subgraph cluster["Kubernetes cluster"]
         subgraph ns["namespace: ehs"]
-            ing[Ingress<br/>nginx-ingress<br/>app.ehs.local]
+            ing[Ingress<br/>nginx-ingress<br/>app.ehs.test]
 
             subgraph apps[Apps]
                 feD[Deployment: frontend<br/>nginx + dist/]
@@ -84,6 +84,6 @@ If step 3 fails, step 4 is never executed → old pods keep serving traffic with
 |---|---|---|
 | Replicas | 1 of everything | 2 of `core-api`, `notifier`, `frontend`; HPA up to 6 |
 | Storage class | default (Docker Desktop / kind hostPath) | encrypted PVC class |
-| Ingress | NodePort or `/etc/hosts` to `app.ehs.local` | LoadBalancer + cert-manager Let's Encrypt |
+| Ingress | NodePort or `/etc/hosts` to `app.ehs.test` | LoadBalancer + cert-manager Let's Encrypt |
 | Secrets | committed dev values | External Secrets Operator or out-of-band `kubectl create` |
 | Kafka security | PLAINTEXT (single-node) | TLS + SASL/SCRAM + ACLs |

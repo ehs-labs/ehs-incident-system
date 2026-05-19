@@ -41,10 +41,10 @@ What the script does:
 After the script finishes, add to `/etc/hosts` (if not already present):
 
 ```
-127.0.0.1   app.ehs.local
+127.0.0.1   app.ehs.test
 ```
 
-Then open `http://app.ehs.local:8080` (nginx-ingress is mapped to host port 8080 by
+Then open `http://app.ehs.test:8080` (nginx-ingress is mapped to host port 8080 by
 `k8s/kind-config.yaml`).
 
 ### Tear down
@@ -119,10 +119,10 @@ All three apply the same `k8s/overlays/local` overlay.
 Add to `/etc/hosts`:
 
 ```
-127.0.0.1   app.ehs.local
+127.0.0.1   app.ehs.test
 ```
 
-Open `http://app.ehs.local`.
+Open `http://app.ehs.test`.
 
 ## Cloud cluster
 
