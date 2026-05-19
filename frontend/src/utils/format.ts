@@ -47,20 +47,24 @@ export function humanizeSeconds(secs: number | null | undefined): string {
   return `${(secs / 86400).toFixed(1)}d`;
 }
 
+// Severity scale follows the architecture brief: S1 is the most critical,
+// S5 is the least. Triage SLA windows in core-api/app/models/incident.rb
+// (S1/S2 -> 4h, S3 -> 24h, S4/S5 -> 72h) and design/state-machines.md
+// ("1 catastrophic ... 5") are the source of truth.
 export function severityColor(sev: Severity | number): string {
   return (
     {
-      1: "#1f8a44",
-      2: "#7cb342",
+      1: "#c62828",
+      2: "#e85d2f",
       3: "#f2a93b",
-      4: "#e85d2f",
-      5: "#c62828"
+      4: "#7cb342",
+      5: "#1f8a44"
     } as Record<number, string>
   )[sev] ?? "#888";
 }
 
 export function severityLabel(sev: Severity | number): string {
-  return ["?", "Minor", "Low", "Moderate", "Major", "Critical"][sev] ?? `S${sev}`;
+  return ["?", "Critical", "Major", "Moderate", "Low", "Minor"][sev] ?? `S${sev}`;
 }
 
 export function stateTagType(

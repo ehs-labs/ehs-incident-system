@@ -22,7 +22,7 @@ import type {
   JsonApiResource,
   ApiError
 } from "@/types/api";
-import { fmtDate, severityColor, stateTagType } from "@/utils/format";
+import { fmtDate, severityColor, severityLabel, stateTagType } from "@/utils/format";
 
 const route = useRoute();
 const router = useRouter();
@@ -48,7 +48,7 @@ const stateOptions = [
 ].map((s) => ({ label: s, value: s }));
 
 const severityOptions = [1, 2, 3, 4, 5].map((s) => ({
-  label: `S${s}`,
+  label: `S${s} — ${severityLabel(s)}`,
   value: s
 }));
 

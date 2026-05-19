@@ -26,6 +26,7 @@ import {
   addWitness
 } from "@/api/incidents";
 import { ApiError, fieldFromPointer, type IncidentType, type ProblemError, type Severity } from "@/types/api";
+import { severityLabel } from "@/utils/format";
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -59,7 +60,7 @@ const typeOptions: { label: string; value: IncidentType }[] = [
 ];
 
 const severityOptions = [1, 2, 3, 4, 5].map((s) => ({
-  label: `S${s}`,
+  label: `S${s} — ${severityLabel(s)}`,
   value: s as Severity
 }));
 
