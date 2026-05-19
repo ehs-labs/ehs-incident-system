@@ -35,8 +35,8 @@ onMounted(async () => {
     const found = list.data.find((r) => r.id === route.params.id);
     if (found) {
       form.value = {
-        name: found.attributes.name,
-        role: found.attributes.role
+        name: found.attributes.name ?? "",
+        role: found.attributes.role ?? "worker"
       };
     }
   } catch (e) {

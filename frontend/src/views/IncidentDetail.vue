@@ -187,9 +187,9 @@ async function loadOrgUsers() {
     const res = await listOrgUsers();
     orgUsers.value = res.data.map((r) => ({
       id: r.id,
-      name: r.attributes.name,
-      email: r.attributes.email,
-      role: r.attributes.role
+      name: r.attributes.name ?? "",
+      email: r.attributes.email ?? "",
+      role: r.attributes.role ?? "worker"
     }));
   } catch {
     /* fine — pickers fall back to read-only */
@@ -236,9 +236,9 @@ const editing = ref(false);
 function startEdit() {
   if (!attrs.value) return;
   editBuffer.value = {
-    location: attrs.value.location,
-    description: attrs.value.description,
-    assignee_id: attrs.value.assignee_id
+    location: attrs.value.location ?? "",
+    description: attrs.value.description ?? "",
+    assignee_id: attrs.value.assignee_id ?? null
   };
   editing.value = true;
 }
@@ -358,7 +358,7 @@ async function actionTransition(
 
 function allowedForAction(
   action_state: CorrectiveActionAttributes["state"],
-  assignee_id: number
+  assignee_id: number | undefined
 ) {
   if (!auth.user) return [];
   const isMine = String(assignee_id) === auth.user.id;

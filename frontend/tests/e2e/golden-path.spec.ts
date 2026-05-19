@@ -92,9 +92,10 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
     await page.locator(".n-select").first().click();
     await page.getByText("Near-miss").click();
 
-    // Severity — second NSelect on the page.
+    // Severity — second NSelect on the page. Options render as "S2 — Major" etc;
+    // match the leading code with a regex so the descriptive label can evolve.
     await page.locator(".n-select").nth(1).click();
-    await page.getByText("S2", { exact: true }).click();
+    await page.getByText(/^S2\b/).click();
 
     // Summary
     // TODO: add data-testid="summary-input" to the summary <n-input>
@@ -220,6 +221,15 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       const workerToken = await pageB.evaluate(() => localStorage.getItem("ehs.jwt"));
       const apiBase = "http://localhost:3000/api/v1";
 
+      // Look up the worker's site dynamically — seed IDs drift across resets.
+      const meRes = await pageB.request.get(`${apiBase}/me`, {
+        headers: { Authorization: `Bearer ${workerToken}` }
+      });
+      expect(meRes.ok()).toBeTruthy();
+      const me = await meRes.json();
+      const workerSiteId = me.data.attributes.sites[0]?.id;
+      expect(workerSiteId).toBeTruthy();
+
       // Create a draft incident.
       const createRes = await pageB.request.post(`${apiBase}/incidents`, {
         headers: { Authorization: `Bearer ${workerToken}` },
@@ -229,7 +239,7 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
             severity: 3,
             summary: "Scenario 3 bell-badge incident",
             description: "Bell badge test — created via API to keep test fast",
-            site_id: 53, // Sydney Warehouse — worker@acme.demo's site
+            site_id: workerSiteId,
             location: "Roof A",
             occurred_at: new Date().toISOString()
           }
@@ -297,8 +307,34 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       const invToken = await pageInv.evaluate(() => localStorage.getItem("ehs.jwt"));
       const apiBase = "http://localhost:3000/api/v1";
 
+      // Look up the worker's user id dynamically — seed IDs drift across resets.
+      const usersRes = await pageInv.request.get(`${apiBase}/admin/users`, {
+        headers: { Authorization: `Bearer ${invToken}` }
+      });
+      let workerId: number | null = null;
+      if (usersRes.ok()) {
+        const list = await usersRes.json();
+        workerId = Number(
+          list.data.find((u: { attributes: { email: string } }) => u.attributes.email === WORKER_EMAIL)?.id
+        );
+      }
+      if (!workerId) {
+        // Investigators get 403 on /admin/users; fall back to logging in as the
+        // worker briefly to read /me.id.
+        const ctxLookup = await browser.newContext();
+        const pageLookup = await ctxLookup.newPage();
+        await loginAs(pageLookup, WORKER_EMAIL, PASSWORD);
+        const tok = await pageLookup.evaluate(() => localStorage.getItem("ehs.jwt"));
+        const meRes = await pageLookup.request.get(`${apiBase}/me`, {
+          headers: { Authorization: `Bearer ${tok}` }
+        });
+        const me = await meRes.json();
+        workerId = Number(me.data.id);
+        await ctxLookup.close();
+      }
+      expect(workerId).toBeTruthy();
+
       // Create the corrective action via API (works for investigator role).
-      // Assignee: worker@acme.demo (ID 98, name "Wendy Worker").
       const caRes = await pageInv.request.post(
         `${apiBase}/incidents/${incidentId}/corrective_actions`,
         {
@@ -308,7 +344,7 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
               title: "Fix aisle 5 lighting",
               description: "Created via API in e2e test due to investigator/admin permission gap",
               due_date: new Date(Date.now() + 7 * 24 * 3600_000).toISOString(),
-              assignee_id: 98 // worker@acme.demo — see db/seeds.rb
+              assignee_id: workerId
             }
           }
         }
