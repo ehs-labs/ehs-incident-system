@@ -102,19 +102,31 @@ install_ingress() {
 # ---------------------------------------------------------------------------
 build_and_load_images() {
   log "Building application images via docker compose..."
-  docker compose build core-api notifier frontend
+  docker compose build core-api notifier
+  # The compose frontend service targets the Vite `dev` stage (HMR for local
+  # development). Kubernetes runs the static nginx `final` stage instead so the
+  # pod stays under sensible memory limits — rebuild it explicitly.
+  log "Building frontend (final stage, nginx) for Kubernetes..."
+  docker build --target final -t "${COMPOSE_PROJECT}-frontend:k8s" frontend/
+
+  # Use a unique tag per script run so the kubelet's tag-keyed image cache is
+  # invalidated; otherwise it sticks to a stale digest.
+  local tag="dev-$(date +%s)"
+  log "Tagging images as :${tag} (cache-busting unique tag)"
+  sed -i.bak -E "s|(newTag: )dev(-[0-9]+)?$|\\1${tag}|g" k8s/overlays/local/kustomization.yaml
+  rm -f k8s/overlays/local/kustomization.yaml.bak
 
   # Map: compose image name -> overlay image name
   local services=("core-api" "notifier" "frontend")
   local compose_names=(
     "${COMPOSE_PROJECT}-core-api"
     "${COMPOSE_PROJECT}-notifier"
-    "${COMPOSE_PROJECT}-frontend"
+    "${COMPOSE_PROJECT}-frontend:k8s"
   )
   local registry_names=(
-    "ghcr.io/ehs-labs/ehs-core-api:dev"
-    "ghcr.io/ehs-labs/ehs-notifier:dev"
-    "ghcr.io/ehs-labs/ehs-frontend:dev"
+    "ghcr.io/ehs-labs/ehs-core-api:${tag}"
+    "ghcr.io/ehs-labs/ehs-notifier:${tag}"
+    "ghcr.io/ehs-labs/ehs-frontend:${tag}"
   )
 
   for i in "${!services[@]}"; do
@@ -209,11 +221,19 @@ case "$CONTEXT" in
     log "Using Docker Desktop's built-in Kubernetes."
     log "Skipping kind image load — Docker Desktop shares the local daemon."
     log "Building application images via docker compose..."
-    docker compose build core-api notifier frontend
-    # Tag to match the overlay image names, no kind load needed.
-    docker tag "${COMPOSE_PROJECT}-core-api" "ghcr.io/ehs-labs/ehs-core-api:dev"
-    docker tag "${COMPOSE_PROJECT}-notifier"  "ghcr.io/ehs-labs/ehs-notifier:dev"
-    docker tag "${COMPOSE_PROJECT}-frontend"  "ghcr.io/ehs-labs/ehs-frontend:dev"
+    docker compose build core-api notifier
+    log "Building frontend (final stage, nginx) for Kubernetes..."
+    docker build --target final -t "${COMPOSE_PROJECT}-frontend:k8s" frontend/
+
+    # Unique tag so the kubelet picks up rebuilds; sticky `:dev` would leave it
+    # on the previous digest.
+    local tag="dev-$(date +%s)"
+    sed -i.bak -E "s|(newTag: )dev(-[0-9]+)?$|\\1${tag}|g" k8s/overlays/local/kustomization.yaml
+    rm -f k8s/overlays/local/kustomization.yaml.bak
+
+    docker tag "${COMPOSE_PROJECT}-core-api"       "ghcr.io/ehs-labs/ehs-core-api:${tag}"
+    docker tag "${COMPOSE_PROJECT}-notifier"       "ghcr.io/ehs-labs/ehs-notifier:${tag}"
+    docker tag "${COMPOSE_PROJECT}-frontend:k8s"   "ghcr.io/ehs-labs/ehs-frontend:${tag}"
     ;;
 
   minikube)
@@ -222,10 +242,17 @@ case "$CONTEXT" in
     # Build directly inside minikube's Docker daemon so no explicit image push
     # is needed.  eval sets DOCKER_HOST etc. for the duration of this script.
     eval "$(minikube docker-env)"
-    docker compose build core-api notifier frontend
-    docker tag "${COMPOSE_PROJECT}-core-api" "ghcr.io/ehs-labs/ehs-core-api:dev"
-    docker tag "${COMPOSE_PROJECT}-notifier"  "ghcr.io/ehs-labs/ehs-notifier:dev"
-    docker tag "${COMPOSE_PROJECT}-frontend"  "ghcr.io/ehs-labs/ehs-frontend:dev"
+    docker compose build core-api notifier
+    log "Building frontend (final stage, nginx) for Kubernetes..."
+    docker build --target final -t "${COMPOSE_PROJECT}-frontend:k8s" frontend/
+
+    local tag="dev-$(date +%s)"
+    sed -i.bak -E "s|(newTag: )dev(-[0-9]+)?$|\\1${tag}|g" k8s/overlays/local/kustomization.yaml
+    rm -f k8s/overlays/local/kustomization.yaml.bak
+
+    docker tag "${COMPOSE_PROJECT}-core-api"       "ghcr.io/ehs-labs/ehs-core-api:${tag}"
+    docker tag "${COMPOSE_PROJECT}-notifier"       "ghcr.io/ehs-labs/ehs-notifier:${tag}"
+    docker tag "${COMPOSE_PROJECT}-frontend:k8s"   "ghcr.io/ehs-labs/ehs-frontend:${tag}"
     ;;
 
   *)

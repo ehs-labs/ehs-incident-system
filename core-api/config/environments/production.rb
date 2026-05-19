@@ -32,15 +32,18 @@ Rails.application.configure do
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :minio
 
-  # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  # Can be used together with config.force_ssl for Strict-Transport-Security and secure cookies.
-  # config.assume_ssl = true
-
-  # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
+  # TLS terminates at the ingress (nginx-ingress / cloud LB), so the proxied
+  # request reaches Rails over HTTP. assume_ssl tells Rails to treat the
+  # connection as encrypted for cookie/HSTS purposes; force_ssl still redirects
+  # bare HTTP requests to HTTPS for direct hits.
+  config.assume_ssl = true
   config.force_ssl = true
 
-  # Skip http-to-https redirect for the default health check endpoint.
-  # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
+  # Skip the http-to-https redirect for the health check endpoint. Without
+  # this exclusion the kubelet's HTTP liveness/readiness probe gets a 301 to
+  # https://...:3000/healthz, follows it back to Puma's plain HTTP port, and
+  # hits a TLS-handshake parse error — pods never go Ready.
+  config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/healthz" } } }
 
   # Log to STDOUT by default
   config.logger = ActiveSupport::Logger.new(STDOUT)

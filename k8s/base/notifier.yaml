@@ -21,13 +21,10 @@ spec:
       containers:
         - name: notifier
           image: ghcr.io/ehs-labs/ehs-notifier:latest
-          envFrom: [{ configMapRef: { name: ehs-config } }]
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            - secretRef:    { name: ehs-secrets }
           env:
-            - { name: POSTGRES_USER,     valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_USER } } }
-            - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_PASSWORD } } }
-            - { name: JWT_SECRET,        valueFrom: { secretKeyRef: { name: ehs-secrets, key: JWT_SECRET } } }
-            - { name: FIELD_CIPHER_KEY,  valueFrom: { secretKeyRef: { name: ehs-secrets, key: FIELD_CIPHER_KEY } } }
-            - { name: TELEGRAM_BOT_TOKEN,valueFrom: { secretKeyRef: { name: ehs-secrets, key: TELEGRAM_BOT_TOKEN } } }
             - name: DATABASE_URL
               value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_NOTIFIER_DB)"
           ports: [{ containerPort: 4000 }]
@@ -51,12 +48,10 @@ spec:
         - name: karafka
           image: ghcr.io/ehs-labs/ehs-notifier:latest
           command: ["bundle", "exec", "karafka", "server"]
-          envFrom: [{ configMapRef: { name: ehs-config } }]
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            - secretRef:    { name: ehs-secrets }
           env:
-            - { name: POSTGRES_USER,     valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_USER } } }
-            - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_PASSWORD } } }
-            - { name: FIELD_CIPHER_KEY,  valueFrom: { secretKeyRef: { name: ehs-secrets, key: FIELD_CIPHER_KEY } } }
-            - { name: TELEGRAM_BOT_TOKEN,valueFrom: { secretKeyRef: { name: ehs-secrets, key: TELEGRAM_BOT_TOKEN } } }
             - name: DATABASE_URL
               value: "postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_NOTIFIER_DB)"
 ---
@@ -66,19 +61,38 @@ metadata:
   name: db-migrate-notifier
   namespace: ehs
 spec:
-  backoffLimit: 2
+  # 6 attempts (1 + 5 retries). See db-migrate-core-api for rationale.
+  backoffLimit: 5
   ttlSecondsAfterFinished: 600
   template:
+    metadata:
+      # NetworkPolicy on postgres allows ingress from app=notifier.
+      labels: { app: notifier }
     spec:
       restartPolicy: Never
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h postgres -p 5432 -U "$POSTGRES_USER" -d postgres -q; do
+                echo "waiting for postgres..."; sleep 2
+              done
+              echo "postgres is ready"
+          env:
+            - { name: POSTGRES_USER, valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_USER } } }
       containers:
         - name: migrate
           image: ghcr.io/ehs-labs/ehs-notifier:latest
           command: ["bundle", "exec", "rake", "db:create", "db:migrate"]
-          envFrom: [{ configMapRef: { name: ehs-config } }]
+          envFrom:
+            - configMapRef: { name: ehs-config }
+            # Inject all secrets (FIELD_CIPHER_KEY, etc) so config/boot.rb's
+            # FIELD_CIPHER initialization succeeds. Mirrors the runtime Deployment.
+            - secretRef:    { name: ehs-secrets }
           env:
-            - { name: POSTGRES_USER,     valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_USER } } }
-            - { name: POSTGRES_PASSWORD, valueFrom: { secretKeyRef: { name: ehs-secrets, key: POSTGRES_PASSWORD } } }
             - name: SKIP_MIGRATION_CHECK
               value: "true"
             - name: DATABASE_URL
