@@ -61,10 +61,20 @@ export function useNotifications() {
   let pingTimer: number | null = null;
   let stopped = false;
 
+  // Derive the WebSocket URL from window.location when VITE_WS_URL is not set
+  // at build time. Compose dev sets it explicitly to ws://localhost:4000/ws
+  // (vite dev forwards env vars at runtime). The Kubernetes build has no
+  // VITE_WS_URL and the SPA reaches the notifier through the same Ingress
+  // host on path /ws, so this produces e.g. ws://app.ehs.test/ws.
+  function defaultWsUrl(): string {
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${proto}//${window.location.host}/ws`;
+  }
+
   function connect() {
     if (stopped || !auth.accessToken) return;
 
-    const wsUrl = import.meta.env.VITE_WS_URL ?? "ws://localhost:4000/ws";
+    const wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl();
     const url = `${wsUrl}?token=${encodeURIComponent(auth.accessToken)}`;
     ws.value = new WebSocket(url, ["ehs.v1"]);
 
