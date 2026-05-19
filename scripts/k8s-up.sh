@@ -204,6 +204,13 @@ ${GREEN}Stack is up.${RESET}
     kubectl -n ${NAMESPACE} port-forward svc/core-api 3000:3000
     kubectl -n ${NAMESPACE} port-forward svc/notifier 4000:4000
 
+  Demo accounts (password: password):
+    admin@acme.demo        — Admin
+    investigator@acme.demo — Investigator
+    worker@acme.demo       — Worker
+
+  Or sign up fresh at the URL above (path: /signup).
+
   Tear down:
     ${tear_down}
 
