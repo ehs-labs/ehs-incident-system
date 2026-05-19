@@ -12,7 +12,7 @@ module Notifier
         # Send initial hello + last 20 unread notifications
         ws.write({ type: "connected", server_time: Time.now.utc.iso8601 }.to_json)
         Notifier::Models::DeliveryLog.recent_unread_for(user_id, limit: 20).each do |row|
-          ws.write({ type: "notification", payload: row.to_h }.to_json)
+          ws.write({ type: "notification", payload: row.values }.to_json)
         end
 
         # Read loop — accept pings, ignore everything else
