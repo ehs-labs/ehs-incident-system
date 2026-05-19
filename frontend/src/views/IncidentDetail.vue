@@ -48,6 +48,7 @@ import {
   fmtDate,
   fmtRelative,
   severityColor,
+  severityLabel,
   stateTagType,
   actionStateTagType,
   absoluteApiUrl
@@ -363,6 +364,78 @@ function allowedForAction(
   if (!auth.user) return [];
   const isMine = String(assignee_id) === auth.user.id;
   return allowedActionTransitions(action_state, auth.user.role, isMine);
+}
+
+// ---- versions / audit trail rendering --------------------------------------
+//
+// PaperTrail emits changeset as `{ field: [old, new] }`. We render the diff
+// as human-readable rows; the JSON dump is hidden behind a toggle for the
+// rare moments when raw inspection is needed.
+const VERSION_EVENT_LABEL: Record<string, string> = {
+  create: "Created",
+  update: "Updated",
+  destroy: "Deleted"
+};
+function versionTitle(v: { attrs: VersionAttributes }): string {
+  const evt = VERSION_EVENT_LABEL[v.attrs.event] ?? v.attrs.event;
+  const who = v.attrs.whodunnit_user?.name ?? "system";
+  return `${evt} · ${who}`;
+}
+
+const VERSION_FIELD_LABEL: Record<string, string> = {
+  state: "State",
+  severity: "Severity",
+  incident_type: "Type",
+  occurred_at: "Occurred at",
+  location: "Location",
+  summary: "Summary",
+  description: "Description",
+  root_cause: "Root cause",
+  submitted_at: "Submitted at",
+  triaged_at: "Triaged at",
+  closed_at: "Closed at",
+  sla_breached_at: "SLA breached at",
+  reporter_id: "Reporter",
+  assignee_id: "Assignee",
+  site_id: "Site",
+  organization_id: "Organization"
+};
+const VERSION_HIDDEN_FIELDS = new Set(["created_at", "updated_at", "id"]);
+
+function formatVersionValue(field: string, value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (field === "severity" && typeof value === "number") {
+    return `S${value} — ${severityLabel(value)}`;
+  }
+  if (field.endsWith("_at") && typeof value === "string") {
+    return fmtDate(value);
+  }
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
+}
+
+interface VersionRow {
+  field: string;
+  label: string;
+  from: string;
+  to: string;
+  isCreate: boolean;
+}
+function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
+  const isCreate = v.attrs.event === "create";
+  return Object.entries(v.attrs.changes ?? {})
+    .filter(([k]) => !VERSION_HIDDEN_FIELDS.has(k))
+    .map(([k, pair]) => {
+      const [fromRaw, toRaw] = Array.isArray(pair) ? pair : [null, pair];
+      return {
+        field: k,
+        label: VERSION_FIELD_LABEL[k] ?? k,
+        from: formatVersionValue(k, fromRaw),
+        to: formatVersionValue(k, toRaw),
+        isCreate
+      };
+    })
+    .filter((row) => row.from !== row.to);
 }
 </script>
 
@@ -772,12 +845,35 @@ function allowedForAction(
                   :key="v.id"
                 >
                   <n-thing
-                    :title="`${v.attrs.event} · ${v.attrs.whodunnit_user?.name ?? 'system'}`"
+                    :title="versionTitle(v)"
                     :description="fmtDate(v.attrs.created_at)"
                   >
-                    <pre style="font-size:12px; white-space:pre-wrap; margin:0">{{
-                      JSON.stringify(v.attrs.changes, null, 2)
-                    }}</pre>
+                    <div
+                      v-if="versionRows(v).length"
+                      class="version-diff"
+                    >
+                      <div
+                        v-for="row in versionRows(v)"
+                        :key="row.field"
+                        class="version-row"
+                      >
+                        <span class="version-field">{{ row.label }}</span>
+                        <template v-if="row.isCreate">
+                          <span class="version-value-new">{{ row.to }}</span>
+                        </template>
+                        <template v-else>
+                          <span class="version-value-old">{{ row.from }}</span>
+                          <span class="version-arrow">→</span>
+                          <span class="version-value-new">{{ row.to }}</span>
+                        </template>
+                      </div>
+                    </div>
+                    <div
+                      v-else
+                      style="font-size:12px; color:#999"
+                    >
+                      No tracked field changes.
+                    </div>
                   </n-thing>
                 </n-list-item>
                 <n-list-item v-if="!versions.length">
@@ -791,3 +887,34 @@ function allowedForAction(
     </n-spin>
   </n-space>
 </template>
+
+<style scoped>
+.version-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.version-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.version-field {
+  flex: 0 0 140px;
+  color: #666;
+  font-weight: 500;
+}
+.version-value-old {
+  color: #999;
+  text-decoration: line-through;
+}
+.version-arrow {
+  color: #999;
+}
+.version-value-new {
+  color: #1f2937;
+}
+</style>

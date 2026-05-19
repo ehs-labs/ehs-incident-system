@@ -471,14 +471,13 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       expect(count).toBeGreaterThanOrEqual(3);
 
       // PaperTrail records "create" / "update" as event types — not AASM event
-      // names. The version title format is "event · username" (IncidentDetail.vue),
-      // rendered inside .n-thing-header__title.
+      // names. The version title format is "Event · username" (IncidentDetail.vue
+      // maps create→Created, update→Updated for readability).
       //
       // The creation event is always present.
-      await expect(page.locator(".n-thing-header__title").filter({ hasText: /^create/ })).toBeVisible();
-      // State changes are stored in the "changes" JSON and rendered inline.
-      // "submitted" appears in the draft→submitted diff; "investigating" in the
-      // submitted→investigating diff. Both must be present after a full lifecycle.
+      await expect(page.locator(".n-thing-header__title").filter({ hasText: /^Created/ })).toBeVisible();
+      // State changes render as "State submitted → investigating" rows in the
+      // diff. Both keywords must appear after a full lifecycle.
       await expect(page.getByText(/submitted/i).first()).toBeVisible();
       await expect(page.getByText(/investigating/i).first()).toBeVisible();
     } finally {
