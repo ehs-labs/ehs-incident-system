@@ -5,7 +5,7 @@ module Handlers
   # The handler decides recipients (via users_mirror), renders templates,
   # and fans out to channels.
   module DomainEvent
-    HANDLERS = {}.freeze # event_type => handler proc
+    HANDLERS = {} # rubocop:disable Style/MutableConstant -- mutated via .register
 
     module_function
 

@@ -25,6 +25,9 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://ehs:testpassword@localhost:5432/ehs_app_migrate
+      JWT_SECRET: ci-jwt-secret-replace-me
+      JWT_DENYLIST_SECRET: ci-jwt-denylist-secret-replace-me
+      FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
