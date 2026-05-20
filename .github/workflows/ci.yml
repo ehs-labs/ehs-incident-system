@@ -335,9 +335,11 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
-      - name: Bring up postgres + minio
-        run: docker compose up -d --wait postgres minio
-        timeout-minutes: 3
+      - name: Bring up infrastructure
+        # All of core-api/notifier's infra deps: postgres, redis (for Sidekiq
+        # queueing during seed), kafka, karapace, minio, mailcatcher.
+        run: docker compose up -d --wait postgres redis kafka karapace minio mailcatcher
+        timeout-minutes: 5
 
       - name: Initialize MinIO bucket
         run: docker compose up minio-init
