@@ -6,16 +6,16 @@
 sequenceDiagram
     autonumber
     participant Browser
-    participant CoreApi as core-api
-    participant DB as ehs_app
+    participant CoreApi as core-api<br/>[Application]
+    participant DB as ehs_app<br/>[Database]
 
     Browser->>CoreApi: POST /api/v1/auth/login (email, password)
-    CoreApi->>DB: bcrypt verify; check confirmed_at, locked_at, deleted_at
+    CoreApi->>DB: bcrypt verify + check confirmed_at, locked_at, deleted_at
     DB-->>CoreApi: user
     CoreApi-->>Browser: 200 + Authorization: Bearer <jwt> + refresh-cookie
 
     Browser->>CoreApi: GET /api/v1/incidents (Authorization: Bearer ...)
-    CoreApi->>CoreApi: verify JWT (HS256, JWT_SECRET); check denylist
+    CoreApi->>CoreApi: verify JWT (HS256, JWT_SECRET) + check denylist
     CoreApi-->>Browser: 200 + data
 ```
 

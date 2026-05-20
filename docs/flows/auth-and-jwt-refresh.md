@@ -8,7 +8,7 @@ sequenceDiagram
 
     Note over SPA,Api: Initial login
     SPA->>Api: POST /api/v1/auth/login {email, password}
-    Api-->>SPA: 200 + Authorization: Bearer <access><br/>Set-Cookie: refresh_token=<...>; HttpOnly; Secure
+    Api-->>SPA: 200 + Authorization: Bearer <access><br/>Set-Cookie: refresh_token=<...>, HttpOnly, Secure
 
     Note over SPA: store access in Pinia (memory only — NOT localStorage)
 

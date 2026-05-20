@@ -3,42 +3,68 @@
 How the system is decomposed into deployable units, and how they communicate.
 
 ```mermaid
-C4Container
-    title Containers — EHS Incident System
+%%{init: {'flowchart': {'htmlLabels': true}, 'themeVariables': {'fontSize': '18px'}}}%%
+flowchart TB
+    user["<b>User</b><br/><i>[Person]</i><br/>Worker / Investigator / Admin"]
 
-    Person(user, "User", "Worker / Investigator / Admin")
+    subgraph ehs["EHS Incident System"]
+        direction TB
+        spa["<b>Vue SPA</b><br/><i>[Container: Vue 3 + TypeScript + Vite]</i><br/>Single-page app: views, forms,<br/>in-app notification badge"]
 
-    System_Boundary(ehs, "EHS Incident System") {
-        Container(spa,      "Vue SPA",        "Vue 3 + TypeScript + Vite",       "Single-page app: views, forms, in-app notification badge")
-        Container(coreApi,  "core-api",       "Rails 7.2 (API-only), Ruby 3.3",  "Domain logic, auth, REST, outbox publisher")
-        Container(sidekiq,  "sidekiq",        "Ruby, Sidekiq + sidekiq-cron",    "Outbox shipper, SLA scans, daily digests")
-        Container(notifier, "notifier",       "Sinatra + Karafka + Falcon",      "Consumes events, fans out to email/Telegram/in-app, hosts WebSocket server")
-        ContainerDb(appDb,    "ehs_app",        "PostgreSQL 16",     "Domain, auth, outbox, audit (PaperTrail)")
-        ContainerDb(notifDb,  "ehs_notifier",   "PostgreSQL 16",     "users_mirror, delivery_log, telegram_chat_links")
-        ContainerDb(redis,    "Redis",          "Redis 7",           "Sidekiq queues, scheduled set, retry set")
-        ContainerDb(kafka,    "Kafka + Karapace","Kafka KRaft + Karapace", "Event bus + Avro schema registry")
-        Container(minio,    "MinIO",          "S3-compatible",                  "Attachment blob store")
-    }
+        subgraph backend[" "]
+            direction LR
 
-    System_Ext(smtp,     "SMTP",         "MailCatcher / SES / SendGrid")
-    System_Ext(telegram, "Telegram API", "Bot API for outbound messages")
+            subgraph writePath["Write path"]
+                direction TB
+                coreApi["<b>core-api</b><br/><i>[Container: Rails 7.2 API-only, Ruby 3.3]</i><br/>Domain logic, auth, REST,<br/>outbox publisher"]
+                sidekiq["<b>sidekiq</b><br/><i>[Container: Ruby, Sidekiq + sidekiq-cron]</i><br/>Outbox shipper, SLA scans,<br/>daily digests"]
+                minio[("<b>MinIO</b><br/><i>[S3-compatible]</i><br/>Attachment blob store")]
+                appDb[("<b>ehs_app</b><br/><i>[PostgreSQL 16]</i><br/>Domain, auth, outbox,<br/>audit (PaperTrail)")]
+                redis[("<b>Redis</b><br/><i>[Redis 7]</i><br/>Sidekiq queues, scheduled set,<br/>retry set")]
+            end
 
-    Rel(user,    spa,      "Uses",        "HTTPS")
-    Rel(spa,     coreApi,  "REST + JWT",  "HTTPS")
-    Rel(spa,     notifier, "WebSocket",   "WSS")
+            kafka[("<b>Kafka + Karapace</b><br/><i>[Kafka KRaft + Karapace]</i><br/>Event bus +<br/>Avro schema registry")]
 
-    Rel(coreApi, appDb,   "Reads / writes")
-    Rel(coreApi, redis,   "Enqueues Sidekiq jobs")
-    Rel(coreApi, minio,   "Stores attachments (ActiveStorage)")
+            subgraph fanout["Notification fanout"]
+                direction TB
+                notifier["<b>notifier</b><br/><i>[Container: Sinatra + Karafka + Falcon]</i><br/>Consumes events, fans out to<br/>email/Telegram/in-app,<br/>hosts WebSocket server"]
+                notifDb[("<b>ehs_notifier</b><br/><i>[PostgreSQL 16]</i><br/>users_mirror, delivery_log,<br/>telegram_chat_links")]
+            end
+        end
+    end
 
-    Rel(sidekiq, redis,    "Pulls jobs")
-    Rel(sidekiq, appDb,    "Reads outbox, writes audit")
-    Rel(sidekiq, kafka,    "Publishes domain events", "Avro / Confluent wire format")
+    smtp["<b>SMTP</b><br/><i>[External System]</i><br/>MailCatcher / SES / SendGrid"]
+    telegram["<b>Telegram API</b><br/><i>[External System]</i><br/>Bot API for outbound messages"]
 
-    Rel(notifier, kafka,    "Consumes events", "Karafka consumer groups")
-    Rel(notifier, notifDb,  "Maintains mirror + delivery log")
-    Rel(notifier, smtp,     "Sends emails", "SMTP")
-    Rel(notifier, telegram, "Sends Telegram messages", "HTTPS")
+    user -->|"Uses<br/><i>[HTTPS]</i>"| spa
+    spa -->|"REST + JWT<br/><i>[HTTPS]</i>"| coreApi
+    spa -->|"WebSocket<br/><i>[WSS]</i>"| notifier
+
+    coreApi -->|"Stores attachments<br/>(ActiveStorage)"| minio
+    coreApi -->|"Reads / writes"| appDb
+    coreApi -->|"Enqueues Sidekiq jobs"| redis
+
+    sidekiq -->|"Pulls jobs"| redis
+    sidekiq -->|"Reads outbox,<br/>writes audit"| appDb
+    sidekiq -->|"Publishes domain events<br/><i>[Avro / Confluent wire format]</i>"| kafka
+
+    kafka -->|"Consumes events<br/><i>[Karafka consumer groups]</i>"| notifier
+    notifier -->|"Maintains mirror<br/>+ delivery log"| notifDb
+    notifier -->|"Sends emails<br/><i>[SMTP]</i>"| smtp
+    notifier -->|"Sends Telegram messages<br/><i>[HTTPS]</i>"| telegram
+
+    classDef person    fill:#08427b,stroke:#052e56,color:#ffffff,stroke-width:1px
+    classDef container fill:#1168bd,stroke:#0b4884,color:#ffffff,stroke-width:1px
+    classDef external  fill:#999999,stroke:#6b6b6b,color:#ffffff,stroke-width:1px
+
+    class user person
+    class spa,coreApi,sidekiq,notifier,appDb,notifDb,redis,kafka,minio container
+    class smtp,telegram external
+
+    style ehs       fill:none,stroke:#0b4884,stroke-dasharray:5 5,color:#0b4884
+    style backend   fill:none,stroke:none
+    style writePath fill:none,stroke:#999,stroke-dasharray:3 3,color:#666
+    style fanout    fill:none,stroke:#999,stroke-dasharray:3 3,color:#666
 ```
 
 ## Why this shape

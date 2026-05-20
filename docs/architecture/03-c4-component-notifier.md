@@ -86,3 +86,9 @@ sequenceDiagram
 ```
 
 The unique index on `(event_id, user_id, channel)` means duplicate Kafka deliveries (which happen — Karafka is at-least-once) never produce duplicate emails / Telegrams / in-app pushes.
+
+## See also
+
+- [03-c4-component-core-api.md](03-c4-component-core-api.md) — what produces the events on the other side
+- [03-c4-component-frontend.md](03-c4-component-frontend.md) — the WS client at the other end
+- [02-c4-container.md](02-c4-container.md) — how this fits into the broader topology

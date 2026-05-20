@@ -10,14 +10,14 @@ sequenceDiagram
     participant K as Kafka (incidents.v1 + corrective_actions.v1)
     participant N as notifier
 
-    Inv->>SPA: Open incident; click "Triage"
+    Inv->>SPA: Open incident → click "Triage"
     SPA->>Api: POST /incidents/:id/transitions {event:"triage", assignee_id, severity}
-    Api->>DB: state=investigating; assignee_id set; outbox: IncidentAssigned
+    Api->>DB: state=investigating + assignee_id set + outbox: IncidentAssigned
     Api-->>SPA: 200 updated
 
     Inv->>SPA: Add corrective actions (title, owner, due_date)
     SPA->>Api: POST /incidents/:id/corrective_actions × N
-    Api->>DB: INSERT corrective_actions; outbox: CorrectiveActionAssigned × N
+    Api->>DB: INSERT corrective_actions + outbox: CorrectiveActionAssigned × N
 
     Inv->>SPA: Click "Assigned" (transition)
     SPA->>Api: POST /incidents/:id/transitions {event:"actions_assigned"}

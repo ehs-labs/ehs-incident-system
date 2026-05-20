@@ -1,68 +1,77 @@
 # Deployment topology
 
 ```mermaid
+%%{init: {'flowchart': {'htmlLabels': true}, 'themeVariables': {'fontSize': '16px'}}}%%
 flowchart TB
+    user((User))
+
     subgraph cluster["Kubernetes cluster"]
         subgraph ns["namespace: ehs"]
-            ing[Ingress<br/>nginx-ingress<br/>app.ehs.test]
+            direction TB
+            ing["<b>Ingress</b><br/>nginx-ingress<br/>app.ehs.test"]
 
-            subgraph apps[Apps]
-                feD[Deployment: frontend<br/>nginx + dist/]
-                caD[Deployment: core-api<br/>HPA 2-6]
-                sqD[Deployment: sidekiq]
-                noD[Deployment: notifier<br/>Falcon HTTP/WS]
-                nkD[Deployment: notifier-karafka<br/>Karafka consumer]
+            subgraph apps["Apps"]
+                direction LR
+                noD["Deployment: notifier<br/>Falcon HTTP/WS"]
+                feD["Deployment: frontend<br/>nginx + dist/"]
+                caD["Deployment: core-api<br/>HPA 2-6"]
+                sqD["Deployment: sidekiq"]
+                nkD["Deployment: notifier-karafka<br/>Karafka consumer"]
             end
 
-            subgraph infra[Infrastructure]
-                pg[StatefulSet: postgres<br/>PVC 5Gi]
-                rd[Deployment: redis]
-                kf[StatefulSet: kafka KRaft<br/>PVC 5Gi]
-                ka[Deployment: karapace]
-                mn[StatefulSet: minio<br/>PVC 5Gi]
-                mc[Deployment: mailcatcher]
+            subgraph infra["Infrastructure"]
+                direction LR
+                mn["StatefulSet: minio<br/>PVC 5Gi"]
+                pg["StatefulSet: postgres<br/>PVC 5Gi"]
+                rd["Deployment: redis"]
+                ka["Deployment: karapace"]
+                kf["StatefulSet: kafka KRaft<br/>PVC 5Gi"]
+                mc["Deployment: mailcatcher"]
             end
 
-            subgraph jobs[Migration jobs]
-                jA[Job: db-migrate-core-api]
-                jN[Job: db-migrate-notifier]
+            subgraph jobs["Migration jobs (run before apps)"]
+                direction LR
+                jA["Job: db-migrate-core-api"]
+                jN["Job: db-migrate-notifier"]
             end
 
-            cm[ConfigMap: ehs-config]
-            sc[Secret: ehs-secrets]
-            np[NetworkPolicies]
+            subgraph clusterCfg["Cluster-wide config"]
+                direction LR
+                cm["ConfigMap: ehs-config"]
+                sc["Secret: ehs-secrets"]
+                np["NetworkPolicies"]
+            end
         end
     end
 
-    user((User)) --> ing
-
-    ing -- "/"     --> feD
-    ing -- "/api"  --> caD
-    ing -- "/ws"   --> noD
+    user --> ing
+    ing -- "/ws"  --> noD
+    ing -- "/api" --> caD
+    ing -- "/"    --> feD
 
     feD --> caD
+
+    caD --> mn
     caD --> pg
     caD --> rd
-    caD --> mn
+    caD --> ka
+
     sqD --> pg
     sqD --> rd
     sqD --> kf
-    nkD --> kf
-    nkD --> ka
+
     noD --> pg
-    caD --> ka
+
+    nkD --> ka
+    nkD --> kf
 
     jA -.before.-> caD
     jN -.before.-> nkD
 
-    cm -.injects.-> caD
-    cm -.injects.-> sqD
-    cm -.injects.-> noD
-    cm -.injects.-> nkD
-    sc -.injects.-> caD
-    sc -.injects.-> sqD
-    sc -.injects.-> noD
-    sc -.injects.-> nkD
+    clusterCfg -. "injected into" .-> apps
+
+    style clusterCfg fill:none,stroke:#999,stroke-dasharray:3 3,color:#666
+    style jobs       fill:none,stroke:#999,stroke-dasharray:3 3,color:#666
 ```
 
 ## Apply order

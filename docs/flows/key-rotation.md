@@ -19,7 +19,7 @@ sequenceDiagram
     Op->>K8s: patch deployments → mount BOTH v1 and v2 keys
     K8s->>API: rolling restart (keys: {v1, v2}, active: v1)
     K8s->>N:   rolling restart (keys: {v1, v2}, active: v1)
-    Note over API,N: At this point both can decrypt v1 AND v2;<br/>both still ENCRYPT with v1.
+    Note over API,N: At this point both can decrypt v1 AND v2,<br/>both still ENCRYPT with v1.
 
     Note over Op,Kafka: Phase 2 — flip producer to v2
     Op->>K8s: patch core-api → active_version: v2
