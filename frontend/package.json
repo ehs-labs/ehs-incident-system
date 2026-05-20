@@ -27,7 +27,7 @@
     "date-fns": "^4.2.1",
     "date-fns-tz": "^3.2.0",
     "naive-ui": "^2.39.0",
-    "pinia": "^2.2.4",
+    "pinia": "^3.0.4",
     "vee-validate": "^4.13.2",
     "vue": "^3.5.10",
     "vue-chartjs": "^5.3.1",
