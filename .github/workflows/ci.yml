@@ -344,6 +344,29 @@ jobs:
       - name: Initialize MinIO bucket
         run: docker compose up minio-init
 
+      - name: Create Kafka topics
+        # AUTO_CREATE_TOPICS_ENABLE is false in compose, so producers (e.g.
+        # core-api's OutboxShipperJob) need topics pre-created or they hang
+        # waiting for delivery acks.
+        run: |
+          for topic in incidents.v1 corrective_actions.v1 users.v1 system.v1; do
+            docker compose exec -T kafka kafka-topics.sh \
+              --bootstrap-server localhost:9092 \
+              --create --if-not-exists \
+              --topic "$topic" --partitions 3 --replication-factor 1
+          done
+
+      - name: Register Avro schemas with live Karapace
+        run: |
+          for schema in schemas/events/v1/*.avsc; do
+            subject="$(basename "$schema" .avsc)-value"
+            payload=$(jq -Rs --arg t AVRO '{schema: ., schemaType: $t}' < "$schema")
+            curl -fsS -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+              -d "$payload" \
+              "http://localhost:8081/subjects/$subject/versions" >/dev/null
+            echo "  registered: $subject"
+          done
+
       - name: Migrate core-api database
         run: docker compose run --rm --no-deps core-api ./bin/rails db:prepare
 
