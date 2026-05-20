@@ -281,6 +281,12 @@ services:
   # split it out so the Sinatra web/WS pod isn't doubling as a Kafka client.
   # --------------------------------------------------------------------------
   notifier-karafka:
+    build:
+      context: ./notifier
+      dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
+        schemas: ./schemas/events/v1
     image: ehs-incident-system-notifier
     command: bundle exec karafka server
     depends_on:
