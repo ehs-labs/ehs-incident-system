@@ -20,7 +20,7 @@ RSpec.describe "Incidents API", type: :request do
     get "List incidents (paginated, Pundit-scoped)" do
       tags "incidents"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :state,    in: :query, schema: { type: :string },  required: false
       parameter name: :severity, in: :query, schema: { type: :integer }, required: false
@@ -60,11 +60,11 @@ RSpec.describe "Incidents API", type: :request do
       tags "incidents"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
-        required: ["incident"],
+        required: [ "incident" ],
         properties: {
           incident: {
             type: :object,
@@ -128,7 +128,7 @@ RSpec.describe "Incidents API", type: :request do
     get "Get an incident" do
       tags "incidents"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
 
@@ -160,7 +160,7 @@ RSpec.describe "Incidents API", type: :request do
       tags "incidents"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
@@ -198,11 +198,11 @@ RSpec.describe "Incidents API", type: :request do
       tags "incidents"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
-        required: ["event"],
+        required: [ "event" ],
         properties: {
           event:       { type: :string, enum: %w[submit triage verify close reopen] },
           assignee_id: { type: :integer },

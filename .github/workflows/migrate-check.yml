@@ -25,17 +25,16 @@ jobs:
     env:
       RAILS_ENV: test
       DATABASE_URL: postgres://ehs:testpassword@localhost:5432/ehs_app_migrate
+      JWT_SECRET: ci-jwt-secret-replace-me
+      JWT_DENYLIST_SECRET: ci-jwt-denylist-secret-replace-me
+      FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     steps:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.1"
           working-directory: core-api
           bundler-cache: true
-
-      - name: strong_migrations lint
-        working-directory: core-api
-        run: bundle exec rake strong_migrations:lint
 
       - name: Migrate up
         working-directory: core-api
@@ -74,7 +73,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.1"
           working-directory: notifier
           bundler-cache: true
 

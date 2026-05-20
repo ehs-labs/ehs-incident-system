@@ -13,7 +13,7 @@ RSpec.describe "Admin Sites API", type: :request do
     get "List all sites in the organization" do
       tags "admin/sites"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 
@@ -40,7 +40,7 @@ RSpec.describe "Admin Sites API", type: :request do
       tags "admin/sites"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
@@ -70,7 +70,7 @@ RSpec.describe "Admin Sites API", type: :request do
         let(:body) { { site: { name: "Bad Plant", timezone: "Not/AZone" } } }
         produces "application/problem+json"
         run_test! do |response|
-          expect([422, 422]).to include(response.status)
+          expect([ 422, 422 ]).to include(response.status)
         end
       end
 
@@ -95,7 +95,7 @@ RSpec.describe "Admin Sites API", type: :request do
       tags "admin/sites"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
@@ -122,7 +122,7 @@ RSpec.describe "Admin Sites API", type: :request do
 
     delete "Destroy a site" do
       tags "admin/sites"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 

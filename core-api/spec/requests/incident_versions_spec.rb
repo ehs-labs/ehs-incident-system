@@ -30,7 +30,7 @@ RSpec.describe "Incident Versions API", type: :request, versioning: true do
     get "Audit trail for an incident" do
       tags "incident_versions"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(reporter)}" }
 

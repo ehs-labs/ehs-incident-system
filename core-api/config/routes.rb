@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   # ----- Health & operational --------------------------------------------
-  get "/healthz", to: ->(_) { [200, {}, ["ok"]] }
+  get "/healthz", to: ->(_) { [ 200, {}, [ "ok" ] ] }
 
   # Sidekiq dashboard (mount unconditionally in dev/local; protect in production)
   require "sidekiq/web"

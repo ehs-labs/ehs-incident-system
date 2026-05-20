@@ -1,35 +1,37 @@
-require "sequel"
-require "sequel/extensions/migration"
+# frozen_string_literal: true
+
+require 'sequel'
+require 'sequel/extensions/migration'
 
 namespace :db do
-  desc "Create the database (no-op if exists)"
+  desc 'Create the database (no-op if exists)'
   task :create do
-    require "uri"
-    url = ENV.fetch("DATABASE_URL")
-    db_name = URI.parse(url).path.delete_prefix("/")
-    admin_url = url.sub(%r{/[^/]+$}, "/postgres")
+    require 'uri'
+    url = ENV.fetch('DATABASE_URL')
+    db_name = URI.parse(url).path.delete_prefix('/')
+    admin_url = url.sub(%r{/[^/]+$}, '/postgres')
     Sequel.connect(admin_url) do |db|
-      db.run("CREATE DATABASE #{db_name}") unless db.fetch("SELECT 1 FROM pg_database WHERE datname = ?", db_name).first
+      db.run("CREATE DATABASE #{db_name}") unless db.fetch('SELECT 1 FROM pg_database WHERE datname = ?', db_name).first
     end
   end
 
-  desc "Run migrations to latest (or to a target version: rake db:migrate[3])"
+  desc 'Run migrations to latest (or to a target version: rake db:migrate[3])'
   task :migrate, [:target] do |_t, args|
-    Sequel.connect(ENV.fetch("DATABASE_URL")) do |db|
+    Sequel.connect(ENV.fetch('DATABASE_URL')) do |db|
       if args[:target]
-        Sequel::Migrator.run(db, "db/migrations", target: Integer(args[:target]))
+        Sequel::Migrator.run(db, 'db/migrations', target: Integer(args[:target]))
       else
-        Sequel::Migrator.run(db, "db/migrations")
+        Sequel::Migrator.run(db, 'db/migrations')
       end
     end
   end
 
-  desc "Drop the database"
+  desc 'Drop the database'
   task :drop do
-    require "uri"
-    url = ENV.fetch("DATABASE_URL")
-    db_name = URI.parse(url).path.delete_prefix("/")
-    admin_url = url.sub(%r{/[^/]+$}, "/postgres")
+    require 'uri'
+    url = ENV.fetch('DATABASE_URL')
+    db_name = URI.parse(url).path.delete_prefix('/')
+    admin_url = url.sub(%r{/[^/]+$}, '/postgres')
     Sequel.connect(admin_url) do |db|
       db.run("DROP DATABASE IF EXISTS #{db_name}")
     end

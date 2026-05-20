@@ -20,7 +20,7 @@ org = Organization.create!(name: "Acme Manufacturing", slug: "acme-manufacturing
 sydney    = Site.create!(organization: org, name: "Sydney Warehouse",    timezone: "Australia/Sydney")
 melbourne = Site.create!(organization: org, name: "Melbourne Plant",     timezone: "Australia/Melbourne")
 perth     = Site.create!(organization: org, name: "Perth Distribution",  timezone: "Australia/Perth")
-sites     = [sydney, melbourne, perth]
+sites     = [ sydney, melbourne, perth ]
 
 puts "[demo] Creating users..."
 def make_user(org:, email:, name:, role:, sites:)
@@ -39,14 +39,14 @@ end
 
 admin        = make_user(org: org, email: "admin@acme.demo",        name: "Alex Admin",        role: :admin,        sites: sites)
 investigator = make_user(org: org, email: "investigator@acme.demo", name: "Pat Investigator", role: :investigator, sites: sites)
-worker       = make_user(org: org, email: "worker@acme.demo",       name: "Wendy Worker",      role: :worker,       sites: [sydney])
+worker       = make_user(org: org, email: "worker@acme.demo",       name: "Wendy Worker",      role: :worker,       sites: [ sydney ])
 
 extra_workers = 4.times.map do |i|
   make_user(org: org,
             email: "worker#{i + 1}@acme.demo",
-            name:  ["Ben Worker", "Cara Worker", "Devi Worker", "Eli Worker"][i],
+            name:  [ "Ben Worker", "Cara Worker", "Devi Worker", "Eli Worker" ][i],
             role:  :worker,
-            sites: [sites[i % 3]])
+            sites: [ sites[i % 3] ])
 end
 
 puts "[demo] Creating incidents across states + severities..."
@@ -67,17 +67,17 @@ rand_in = ->(range) { rand(range) }
 
 # Most incidents are closed, then pending_closure, then investigating, then submitted, with a few drafts
 state_distribution = (
-  ["closed"] * 14 +
-  ["pending_closure"] * 8 +
-  ["investigating"] * 8 +
-  ["submitted"] * 6 +
-  ["draft"] * 4
+  [ "closed" ] * 14 +
+  [ "pending_closure" ] * 8 +
+  [ "investigating" ] * 8 +
+  [ "submitted" ] * 6 +
+  [ "draft" ] * 4
 ).shuffle
 
 incidents = state_distribution.each_with_index.map do |target_state, i|
   site     = sites.sample
-  reporter = [worker, *extra_workers].sample
-  severity = ([1] * 2 + [2] * 4 + [3] * 6 + [4] * 4 + [5] * 4).sample
+  reporter = [ worker, *extra_workers ].sample
+  severity = ([ 1 ] * 2 + [ 2 ] * 4 + [ 3 ] * 6 + [ 4 ] * 4 + [ 5 ] * 4).sample
   occurred = rand(2.weeks.to_i).seconds.ago
 
   incident = Incident.create!(
@@ -111,14 +111,14 @@ incidents = state_distribution.each_with_index.map do |target_state, i|
     # 1-2 corrective actions per incident at this stage.
     Current.user = investigator
     rand(1..2).times do |a_idx|
-      assignee_user = [investigator, *extra_workers].sample
+      assignee_user = [ investigator, *extra_workers ].sample
       # Mix of past + future due dates so the overdue scanner has work to do.
       due = (rand(-5..10).days.from_now)
       action = CorrectiveAction.new(
         incident:    incident,
         assignee:    assignee_user,
         created_by:  investigator,
-        title:       "Action #{a_idx + 1}: #{['Inspect equipment', 'Retrain staff', 'Update SOP', 'Replace part'].sample}",
+        title:       "Action #{a_idx + 1}: #{[ 'Inspect equipment', 'Retrain staff', 'Update SOP', 'Replace part' ].sample}",
         description: "Follow-up action arising from incident investigation.",
         due_date:    due > Time.current ? due : 1.day.from_now
       )
@@ -160,7 +160,7 @@ incidents = state_distribution.each_with_index.map do |target_state, i|
     end
 
     rand(0..3).times do
-      author = [reporter, investigator, admin].sample
+      author = [ reporter, investigator, admin ].sample
       Comment.create!(
         incident: incident,
         author:   author,

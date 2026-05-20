@@ -23,7 +23,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.1"
           working-directory: core-api
           bundler-cache: true
 
@@ -66,7 +66,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.1"
           working-directory: core-api
           bundler-cache: true
 
@@ -132,20 +132,21 @@ jobs:
       REDIS_URL: redis://localhost:6379/1
       JWT_SECRET: ci-jwt-secret-replace-me
       JWT_DENYLIST_SECRET: ci-jwt-denylist-secret-replace-me
-      FIELD_CIPHER_KEY: aGVsbG93b3JsZGhlbGxvd29ybGRoZWxsb3dvcmxk
+      FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     steps:
       - uses: actions/checkout@v4
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.1"
           working-directory: core-api
           bundler-cache: true
 
       - name: DB setup
         working-directory: core-api
         run: |
-          bundle exec rails db:create db:schema:load
+          bundle exec rails db:create
+          bundle exec rails db:migrate
 
       - name: RSpec
         working-directory: core-api
@@ -187,14 +188,14 @@ jobs:
       DATABASE_URL: postgres://ehs:testpassword@localhost:5432/ehs_notifier_test
       KAFKA_BROKERS: localhost:9092
       KARAPACE_URL: http://localhost:8081
-      FIELD_CIPHER_KEY: aGVsbG93b3JsZGhlbGxvd29ybGRoZWxsb3dvcmxk
+      FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       JWT_SECRET: ci-jwt-secret-replace-me
     steps:
       - uses: actions/checkout@v4
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4"
+          ruby-version: "3.4.1"
           working-directory: notifier
           bundler-cache: true
 

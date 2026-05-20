@@ -34,6 +34,6 @@ class SlaBreachScanJob
   def admin_recipients(incident)
     User.where(organization_id: incident.organization_id, role: User.roles[:admin])
         .where(deleted_at: nil)
-        .pluck(:id) + [incident.assignee_id].compact
+        .pluck(:id) + [ incident.assignee_id ].compact
   end
 end

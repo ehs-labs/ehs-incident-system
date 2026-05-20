@@ -15,7 +15,7 @@ RSpec.describe "Me API", type: :request do
     get "Return the current user's profile" do
       tags "me"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(user)}" }
 
@@ -43,7 +43,7 @@ RSpec.describe "Me API", type: :request do
       tags "me"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,

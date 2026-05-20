@@ -16,11 +16,11 @@ class AttachmentPolicy < ApplicationPolicy
 
   def incident
     @incident ||= case record
-                  when Incident
+    when Incident
                     record
-                  when ActiveStorage::Attachment
+    when ActiveStorage::Attachment
                     record.record_type == "Incident" ? Incident.find_by(id: record.record_id) : nil
-                  end
+    end
   end
 
   def same_org?

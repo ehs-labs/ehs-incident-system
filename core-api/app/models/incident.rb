@@ -67,7 +67,7 @@ class Incident < ApplicationRecord
       transitions from: %i[submitted closed], to: :investigating, guard: :assignee_present?
       after do
         update_column(:triaged_at, Time.current)
-        publish_event!("IncidentAssigned", recipient_user_ids: [assignee_id].compact)
+        publish_event!("IncidentAssigned", recipient_user_ids: [ assignee_id ].compact)
       end
     end
 
@@ -83,7 +83,7 @@ class Incident < ApplicationRecord
       transitions from: :pending_closure, to: :closed
       after do
         update_column(:closed_at, Time.current)
-        publish_event!("IncidentClosed", recipient_user_ids: [reporter_id, assignee_id].compact.uniq)
+        publish_event!("IncidentClosed", recipient_user_ids: [ reporter_id, assignee_id ].compact.uniq)
       end
     end
 
@@ -130,7 +130,7 @@ class Incident < ApplicationRecord
   end
 
   def ready_for_submission?
-    [incident_type, severity, occurred_at, location, summary, description].all?(&:present?)
+    [ incident_type, severity, occurred_at, location, summary, description ].all?(&:present?)
   end
 
   def assignee_present?
@@ -156,7 +156,7 @@ class Incident < ApplicationRecord
     return [] unless site
 
     User.where(organization_id: organization_id)
-        .where(role: [User.roles[:investigator], User.roles[:admin]])
+        .where(role: [ User.roles[:investigator], User.roles[:admin] ])
         .joins(:site_memberships)
         .where(site_memberships: { site_id: site_id })
         .where(deleted_at: nil)

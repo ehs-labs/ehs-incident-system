@@ -28,7 +28,7 @@ RSpec.describe "Attachments API", type: :request do
       tags "attachments"
       consumes "multipart/form-data"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :"attachment[file]", in: :formData, schema: { type: :string, format: :binary }, required: true
 
@@ -68,7 +68,7 @@ RSpec.describe "Attachments API", type: :request do
     get "List attachments on an incident" do
       tags "attachments"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 
@@ -100,7 +100,7 @@ RSpec.describe "Attachments API", type: :request do
 
     delete "Purge an attachment" do
       tags "attachments"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 

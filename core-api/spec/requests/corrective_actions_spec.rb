@@ -46,7 +46,7 @@ RSpec.describe "Corrective Actions API", type: :request do
     get "List corrective actions for an incident" do
       tags "corrective_actions"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
 
@@ -80,11 +80,11 @@ RSpec.describe "Corrective Actions API", type: :request do
       tags "corrective_actions"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
-        required: ["corrective_action"],
+        required: [ "corrective_action" ],
         properties: {
           corrective_action: {
             type: :object,
@@ -176,7 +176,7 @@ RSpec.describe "Corrective Actions API", type: :request do
     get "Get a single corrective action" do
       tags "corrective_actions"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
 
@@ -220,11 +220,11 @@ RSpec.describe "Corrective Actions API", type: :request do
       tags "corrective_actions"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
-        required: ["event"],
+        required: [ "event" ],
         properties: {
           event: { type: :string, enum: %w[start complete verify cancel] }
         }

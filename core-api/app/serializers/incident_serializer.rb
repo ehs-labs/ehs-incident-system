@@ -19,4 +19,3 @@ class IncidentSerializer
   belongs_to :reporter, serializer: :user, record_type: :user
   belongs_to :assignee, serializer: :user, record_type: :user
 end
-

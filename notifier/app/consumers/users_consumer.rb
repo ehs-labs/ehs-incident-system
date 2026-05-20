@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class UsersConsumer < Karafka::BaseConsumer
   # CDC consumer for users.v1 (log-compacted). Decrypts PII fields with
   # ehs-envelope and writes/upserts into users_mirror. Tombstones (event=nil
@@ -13,25 +15,24 @@ class UsersConsumer < Karafka::BaseConsumer
         next
       end
 
-      user_id = event.fetch("user_id")
+      user_id = event.fetch('user_id')
 
-      if event["deleted"]
+      if event['deleted']
         Notifier::Models::UserMirror.where(user_id: user_id).delete
         next
       end
 
       Notifier::Models::UserMirror.upsert(
-        user_id:          user_id,
-        org_id:           event["org_id"],
-        role:             event["role"].to_s,
-        name:             FIELD_CIPHER.decrypt(event["name_enc"]),
-        email:            FIELD_CIPHER.decrypt(event["email_enc"]),
-        telegram_chat_id: FIELD_CIPHER.decrypt(event["telegram_chat_id_enc"]),
-        prefs:            event["prefs"] || {},
+        user_id: user_id,
+        org_id: event['org_id'],
+        role: event['role'].to_s,
+        name: FIELD_CIPHER.decrypt(event['name_enc']),
+        email: FIELD_CIPHER.decrypt(event['email_enc']),
+        telegram_chat_id: FIELD_CIPHER.decrypt(event['telegram_chat_id_enc']),
+        prefs: event['prefs'] || {},
         # AvroTurf decodes timestamp-millis as a Ruby Time, so pass through directly.
-        updated_at:       coerce_time(event.fetch("updated_at"))
+        updated_at: coerce_time(event.fetch('updated_at'))
       )
-
     rescue StandardError => e
       Karafka.logger.error("[UsersConsumer] failed offset=#{message.offset}: #{e.class}: #{e.message}")
       raise

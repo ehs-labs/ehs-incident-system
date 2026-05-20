@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Notifier
   module Models
     class UserMirror < Sequel::Model(:users_mirror)

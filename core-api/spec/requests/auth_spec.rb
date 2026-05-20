@@ -22,7 +22,7 @@ RSpec.describe "Auth API", type: :request do
             }
           }
         },
-        required: ["user"]
+        required: [ "user" ]
       }
 
       response "201", "Created — JWT in Authorization header" do
@@ -73,7 +73,7 @@ RSpec.describe "Auth API", type: :request do
             }
           }
         },
-        required: ["user"]
+        required: [ "user" ]
       }
 
       let(:org)  { create(:organization) }
@@ -106,7 +106,7 @@ RSpec.describe "Auth API", type: :request do
     delete "Revoke the current JWT" do
       tags "auth"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:org)           { create(:organization) }
       let(:user)          { create(:user, organization: org, confirmed_at: Time.current) }

@@ -13,7 +13,7 @@ RSpec.describe "Admin Settings API", type: :request do
     get "Return organization SLA settings" do
       tags "admin/settings"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 
@@ -36,7 +36,7 @@ RSpec.describe "Admin Settings API", type: :request do
       tags "admin/settings"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,

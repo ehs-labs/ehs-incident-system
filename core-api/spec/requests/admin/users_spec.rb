@@ -15,7 +15,7 @@ RSpec.describe "Admin Users API", type: :request do
     get "List users in the organization" do
       tags "admin/users"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :role, in: :query, schema: { type: :string }, required: false
       parameter name: :q,    in: :query, schema: { type: :string }, required: false
@@ -42,7 +42,7 @@ RSpec.describe "Admin Users API", type: :request do
 
         run_test! do |response|
           roles = JSON.parse(response.body)["data"].map { |u| u.dig("attributes", "role") }
-          expect(roles.uniq).to eq(["investigator"])
+          expect(roles.uniq).to eq([ "investigator" ])
         end
       end
 
@@ -73,7 +73,7 @@ RSpec.describe "Admin Users API", type: :request do
       tags "admin/users"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
@@ -95,7 +95,7 @@ RSpec.describe "Admin Users API", type: :request do
 
       response "201", "Created — invitation email sent and sites assigned" do
         let(:body) do
-          { user: { email: "newhire@example.com", name: "New Hire", role: "worker", site_ids: [site.id] } }
+          { user: { email: "newhire@example.com", name: "New Hire", role: "worker", site_ids: [ site.id ] } }
         end
 
         run_test! do |response|
@@ -124,7 +124,7 @@ RSpec.describe "Admin Users API", type: :request do
     post "Lock a user account" do
       tags "admin/users"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 
@@ -152,7 +152,7 @@ RSpec.describe "Admin Users API", type: :request do
     post "Unlock a user account" do
       tags "admin/users"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 
@@ -174,7 +174,7 @@ RSpec.describe "Admin Users API", type: :request do
 
     delete "Soft-delete a user" do
       tags "admin/users"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 

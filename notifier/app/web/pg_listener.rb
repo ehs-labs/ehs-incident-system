@@ -1,5 +1,7 @@
-require "json"
-require "sequel"
+# frozen_string_literal: true
+
+require 'json'
+require 'sequel'
 
 module Notifier
   module Web
@@ -17,14 +19,15 @@ module Notifier
     # (`DeliveryLog.recent_unread_for`) remains the safety net for dropped
     # notifies.
     module PgListener
-      CHANNEL = "delivery_log_appended"
+      CHANNEL = 'delivery_log_appended'
       BACKOFFS = [1, 5, 15].freeze
 
       def self.start!
         return if @started
+
         @started = true
         @thread = Thread.new { run_loop }
-        @thread.name = "pg-listener" if @thread.respond_to?(:name=)
+        @thread.name = 'pg-listener' if @thread.respond_to?(:name=)
       end
 
       def self.run_loop
@@ -32,7 +35,7 @@ module Notifier
         loop do
           listener_db = nil
           begin
-            listener_db = Sequel.connect(ENV.fetch("DATABASE_URL"), max_connections: 1)
+            listener_db = Sequel.connect(ENV.fetch('DATABASE_URL'), max_connections: 1)
             attempt = 0
             listener_db.listen(CHANNEL, loop: true) do |_chan, _pid, raw|
               handle(raw)

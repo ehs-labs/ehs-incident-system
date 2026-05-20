@@ -1,20 +1,26 @@
-ENV["RACK_ENV"]              = "test"
-ENV["SKIP_MIGRATION_CHECK"]  ||= "true"
-# 32 zero-bytes encoded as base64 — matches .env.example convention
-ENV["FIELD_CIPHER_KEY"]      ||= "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-# Force-set the test database — `||=` would let an inherited production URL slip
-# through when specs run inside a long-running container, and the per-example
-# truncates below would wipe real data.
-ENV["DATABASE_URL"]          = "postgres://ehs:devpassword@postgres:5432/ehs_notifier_test"
-ENV["KAFKA_BROKERS"]         ||= "kafka:9092"
-ENV["KARAPACE_URL"]          ||= "http://karapace:8081"
+# frozen_string_literal: true
 
-require_relative "../config/boot"
-require "karafka/testing/rspec/helpers"
+ENV['RACK_ENV'] = 'test'
+ENV['SKIP_MIGRATION_CHECK']  ||= 'true'
+# 32 zero-bytes encoded as base64 — matches .env.example convention
+ENV['FIELD_CIPHER_KEY']      ||= 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+# Default the test database for local docker-compose runs, but let an
+# externally-provided DATABASE_URL win so CI can point at its service container.
+# Guard against a production URL slipping through (the per-example truncates
+# below would wipe real data) by requiring the database name to end in `_test`.
+ENV['DATABASE_URL']          ||= 'postgres://ehs:devpassword@postgres:5432/ehs_notifier_test'
+unless ENV.fetch('DATABASE_URL').include?('_test')
+  abort "DATABASE_URL must point at a test database (name ending in _test). Got: #{ENV['DATABASE_URL']}"
+end
+ENV['KAFKA_BROKERS']         ||= 'kafka:9092'
+ENV['KARAPACE_URL']          ||= 'http://karapace:8081'
+
+require_relative '../config/boot'
+require 'karafka/testing/rspec/helpers'
 
 # Boot the Karafka routing table so karafka-testing can resolve consumers.
 # The app does not connect to the broker during setup — it only reads ENV.
-require_relative "../karafka"
+require_relative '../karafka'
 Karafka::App.initialize!
 
 RSpec.configure do |config|
