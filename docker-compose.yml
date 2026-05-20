@@ -220,15 +220,26 @@ services:
     # Same image as core-api (same Dockerfile, different command). Sharing the
     # image guarantees they stay in lockstep — no risk of a stale sidekiq
     # build lagging behind a fresh core-api build.
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
+        schemas: ./schemas/events/v1
     image: ehs-incident-system-core-api
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
       core-api:
         condition: service_healthy
-    # Override core-api's HTTP healthcheck — sidekiq has no web port. We rely
-    # on sidekiq's own crash-on-error semantics + the Sidekiq dashboard for liveness.
+    # Override core-api's HTTP healthcheck — sidekiq has no web port. Under
+    # tini as PID 1, sidekiq dying takes the container down, so "container up"
+    # is equivalent to "worker running". Trivial healthcheck satisfies
+    # `docker compose --wait`.
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 30s
+      timeout: 3s
+      retries: 1
     environment:
       RAILS_ENV: development
       DATABASE_URL: postgres://${POSTGRES_USER:-ehs}:${POSTGRES_PASSWORD:-devpassword}@postgres:5432/${POSTGRES_APP_DB:-ehs_app}
@@ -281,6 +292,12 @@ services:
   # split it out so the Sinatra web/WS pod isn't doubling as a Kafka client.
   # --------------------------------------------------------------------------
   notifier-karafka:
+    build:
+      context: ./notifier
+      dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
+        schemas: ./schemas/events/v1
     image: ehs-incident-system-notifier
     command: bundle exec karafka server
     depends_on:
@@ -301,9 +318,14 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       FIELD_CIPHER_KEY: ${FIELD_CIPHER_KEY}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-    # No HTTP port — Karafka's own crash-on-error semantics are the liveness signal.
+    # No HTTP port — Karafka under tini takes the container down on worker
+    # death, so "container up" is equivalent to "consumer running". Trivial
+    # healthcheck satisfies `docker compose --wait`.
     healthcheck:
-      disable: true
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 30s
+      timeout: 3s
+      retries: 1
 
   # --------------------------------------------------------------------------
   # frontend (Vite dev server)

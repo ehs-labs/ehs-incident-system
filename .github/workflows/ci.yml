@@ -37,16 +37,16 @@ jobs:
           bundle install
           bundle exec rubocop --parallel --no-color
 
+      - uses: pnpm/action-setup@v3
+        with:
+          version: "9"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - uses: pnpm/action-setup@v3
-        with:
-          version: "9"
 
       - name: Frontend lint
         working-directory: frontend
@@ -253,26 +253,35 @@ jobs:
           name: openapi
           path: core-api
 
+      - name: Copy env template
+        run: cp .env.example .env
+
+      - name: Start Kafka + Karapace
+        run: docker compose up -d --wait kafka karapace
+        timeout-minutes: 5
+
       - name: Validate Avro schemas
         run: |
-          # Karapace runs locally on port 8081 in this job's scratch container
-          docker run -d --name karapace -p 8081:8081 \
-            -e KARAPACE_REGISTRY_HOST=0.0.0.0 \
-            ghcr.io/aiven/karapace:latest
-          # Wait for Karapace
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            curl -sf http://localhost:8081/subjects && break || sleep 2
-          done
-          # Register each schema; non-zero exit means incompatible
           for schema in schemas/events/v1/*.avsc; do
             echo "Registering $schema"
             subject=$(basename "$schema" .avsc)-value
             payload=$(jq -Rs '{schema: ., schemaType: "AVRO"}' < "$schema")
-            curl -sf -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Content-Type: application/vnd.schemaregistry.v1+json" \
               -d "$payload" \
-              "http://localhost:8081/subjects/$subject/versions" \
-              || { echo "::error::Schema $schema failed to register"; exit 1; }
+              "http://localhost:8081/subjects/$subject/versions")
+            code=$(printf '%s' "$response" | tail -n1)
+            body=$(printf '%s' "$response" | sed '$d')
+            if [ "$code" -ge 400 ]; then
+              echo "::error::Schema $schema failed (HTTP $code): $body"
+              exit 1
+            fi
+            echo "  -> HTTP $code $body"
           done
+
+      - name: Capture karapace logs on failure
+        if: failure()
+        run: docker compose logs kafka karapace
 
   # ---------------------------------------------------------------------------
   # Build images & push to GHCR — only on main branch
@@ -326,8 +335,53 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
+      - name: Bring up infrastructure
+        # All of core-api/notifier's infra deps: postgres, redis (for Sidekiq
+        # queueing during seed), kafka, karapace, minio, mailcatcher.
+        run: docker compose up -d --wait postgres redis kafka karapace minio mailcatcher
+        timeout-minutes: 5
+
+      - name: Initialize MinIO bucket
+        run: docker compose up minio-init
+
+      - name: Create Kafka topics
+        # AUTO_CREATE_TOPICS_ENABLE is false in compose, so producers (e.g.
+        # core-api's OutboxShipperJob) need topics pre-created or they hang
+        # waiting for delivery acks.
+        run: |
+          for topic in incidents.v1 corrective_actions.v1 users.v1 system.v1; do
+            docker compose exec -T kafka kafka-topics.sh \
+              --bootstrap-server localhost:9092 \
+              --create --if-not-exists \
+              --topic "$topic" --partitions 3 --replication-factor 1
+          done
+
+      - name: Register Avro schemas with live Karapace
+        run: |
+          for schema in schemas/events/v1/*.avsc; do
+            subject="$(basename "$schema" .avsc)-value"
+            payload=$(jq -Rs --arg t AVRO '{schema: ., schemaType: $t}' < "$schema")
+            curl -fsS -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+              -d "$payload" \
+              "http://localhost:8081/subjects/$subject/versions" >/dev/null
+            echo "  registered: $subject"
+          done
+
+      - name: Migrate core-api database
+        run: docker compose run --rm --no-deps core-api ./bin/rails db:prepare
+
+      - name: Seed demo data (creates worker/investigator/admin accounts used by Playwright)
+        run: docker compose run --rm --no-deps core-api ./bin/rails db:seed:demo
+
+      - name: Migrate notifier database
+        run: docker compose run --rm --no-deps notifier bundle exec rake db:create db:migrate
+
       - name: Bring up stack
-        run: docker compose up -d --wait
+        # Exclude minio-init: it's a one-shot run-to-completion container, and
+        # `--wait` treats exit(0) as failure. minio-init is already done above.
+        run: |
+          services=$(docker compose config --services | grep -vx 'minio-init')
+          docker compose up -d --wait $services
         timeout-minutes: 8
 
       - uses: actions/setup-node@v4

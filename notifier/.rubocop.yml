@@ -1,0 +1,58 @@
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  Exclude:
+    - "bin/**/*"
+    - "db/migrate/**/*"
+    - "tmp/**/*"
+    - "vendor/**/*"
+
+# Match the relaxed posture of core-api (which uses rubocop-rails-omakase):
+# RuboCop is for catching real bugs, not enforcing aesthetics. Metrics-style
+# cops are reviewed in PR, not gated in CI.
+
+Style/Documentation:
+  Enabled: false
+
+# librdkafka uses dotted keys like :"sasl.mechanisms" — double-quoted symbols
+# are correct here, not a style smell.
+Style/QuotedSymbols:
+  Enabled: false
+
+# ENV['X'] is fine.
+Style/FetchEnvVar:
+  Enabled: false
+
+# Multiple classes in one config file (e.g. karafka.rb) is intentional.
+Style/OneClassPerFile:
+  Enabled: false
+
+# Dir[...].sort is explicit and intentional; we want stable load order.
+Lint/RedundantDirGlobSort:
+  Enabled: false
+
+Lint/AmbiguousOperatorPrecedence:
+  Enabled: false
+
+Lint/UnusedBlockArgument:
+  Exclude:
+    - "spec/**/*"
+
+Layout/LineLength:
+  Max: 200
+  Exclude:
+    - "spec/**/*"
+
+Style/EmptyStringInsideInterpolation:
+  Enabled: false
+
+Style/IfUnlessModifier:
+  Enabled: false
+
+Naming/MethodParameterName:
+  MinNameLength: 2
+
+# Disable all Metrics/* cops — these are subjective complexity heuristics
+# that produce noise without catching real defects.
+Metrics:
+  Enabled: false
