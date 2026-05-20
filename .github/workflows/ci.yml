@@ -31,10 +31,21 @@ jobs:
         working-directory: core-api
         run: bundle exec rubocop --parallel --no-color
 
+      # setup-ruby's bundler-cache only covers core-api's working-directory;
+      # cache notifier's gems separately keyed on its Gemfile.lock.
+      - name: Cache notifier bundle
+        uses: actions/cache@v4
+        with:
+          path: notifier/vendor/bundle
+          key: bundle-notifier-${{ runner.os }}-ruby-3.4.1-${{ hashFiles('notifier/Gemfile.lock') }}
+          restore-keys: |
+            bundle-notifier-${{ runner.os }}-ruby-3.4.1-
+
       - name: RuboCop (notifier)
         working-directory: notifier
         run: |
-          bundle install
+          bundle config set --local path 'vendor/bundle'
+          bundle install --jobs 4 --retry 3
           bundle exec rubocop --parallel --no-color
 
       - uses: pnpm/action-setup@v3
@@ -78,10 +89,19 @@ jobs:
         working-directory: core-api
         run: bundle exec bundle-audit check --update
 
+      - name: Cache notifier bundle
+        uses: actions/cache@v4
+        with:
+          path: notifier/vendor/bundle
+          key: bundle-notifier-${{ runner.os }}-ruby-3.4.1-${{ hashFiles('notifier/Gemfile.lock') }}
+          restore-keys: |
+            bundle-notifier-${{ runner.os }}-ruby-3.4.1-
+
       - name: bundler-audit (notifier)
         working-directory: notifier
         run: |
-          bundle install
+          bundle config set --local path 'vendor/bundle'
+          bundle install --jobs 4 --retry 3
           bundle exec bundle-audit check --update
 
       - uses: pnpm/action-setup@v3
@@ -335,6 +355,48 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
+      # Pre-build the three app images via buildx with GHA layer cache. The
+      # built images are loaded into the local Docker daemon and reused by
+      # `docker compose up` below (compose only builds if the tagged image is
+      # missing). Cache scopes match build-images for core-api/notifier so the
+      # caches are shared; frontend uses target: dev here, separate scope.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build core-api image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: core-api
+          build-contexts: |
+            shared-envelope=shared/envelope
+            schemas=schemas/events/v1
+          tags: ehs-incident-system-core-api:latest
+          load: true
+          cache-from: type=gha,scope=core-api
+          cache-to: type=gha,scope=core-api,mode=max
+
+      - name: Build notifier image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: notifier
+          build-contexts: |
+            shared-envelope=shared/envelope
+            schemas=schemas/events/v1
+          tags: ehs-incident-system-notifier:latest
+          load: true
+          cache-from: type=gha,scope=notifier
+          cache-to: type=gha,scope=notifier,mode=max
+
+      - name: Build frontend image (cached)
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          target: dev
+          tags: ehs-incident-system-frontend:latest
+          load: true
+          cache-from: type=gha,scope=frontend-dev
+          cache-to: type=gha,scope=frontend-dev,mode=max
+
       - name: Bring up infrastructure
         # All of core-api/notifier's infra deps: postgres, redis (for Sidekiq
         # queueing during seed), kafka, karapace, minio, mailcatcher.
@@ -384,18 +446,38 @@ jobs:
           docker compose up -d --wait $services
         timeout-minutes: 8
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
       - uses: pnpm/action-setup@v3
         with:
           version: "9"
 
-      - name: Install Playwright + browsers
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install pnpm deps
         working-directory: frontend
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
+        run: pnpm install --frozen-lockfile
+
+      # Browser binaries live in ~/.cache/ms-playwright. Keyed on
+      # pnpm-lock.yaml so a Playwright version bump invalidates the cache.
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers + system deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (browsers cached)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        working-directory: frontend
+        run: pnpm exec playwright install-deps chromium
 
       - name: Run e2e
         working-directory: frontend
