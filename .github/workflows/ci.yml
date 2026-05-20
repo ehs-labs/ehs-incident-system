@@ -335,6 +335,16 @@ jobs:
       - name: Copy env template
         run: cp .env.example .env
 
+      - name: Bring up postgres
+        run: docker compose up -d --wait postgres
+        timeout-minutes: 3
+
+      - name: Migrate core-api database
+        run: docker compose run --rm --no-deps core-api ./bin/rails db:prepare
+
+      - name: Migrate notifier database
+        run: docker compose run --rm --no-deps notifier bundle exec rake db:create db:migrate
+
       - name: Bring up stack
         run: docker compose up -d --wait
         timeout-minutes: 8
