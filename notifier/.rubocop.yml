@@ -39,9 +39,12 @@ Lint/UnusedBlockArgument:
     - "spec/**/*"
 
 Layout/LineLength:
-  Max: 120
+  Max: 160
   Exclude:
     - "spec/**/*"
+
+Style/EmptyStringInsideInterpolation:
+  Enabled: false
 
 Naming/MethodParameterName:
   MinNameLength: 2
