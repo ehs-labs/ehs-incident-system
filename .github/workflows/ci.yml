@@ -345,6 +345,9 @@ jobs:
       - name: Migrate core-api database
         run: docker compose run --rm --no-deps core-api ./bin/rails db:prepare
 
+      - name: Seed demo data (creates worker/investigator/admin accounts used by Playwright)
+        run: docker compose run --rm --no-deps core-api ./bin/rails db:seed:demo
+
       - name: Migrate notifier database
         run: docker compose run --rm --no-deps notifier bundle exec rake db:create db:migrate
 
