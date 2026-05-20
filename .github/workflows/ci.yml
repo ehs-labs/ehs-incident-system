@@ -23,7 +23,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ".ruby-version"
+          ruby-version: "core-api/.ruby-version"
           working-directory: core-api
           bundler-cache: true
 
@@ -66,7 +66,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ".ruby-version"
+          ruby-version: "core-api/.ruby-version"
           working-directory: core-api
           bundler-cache: true
 
@@ -138,7 +138,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ".ruby-version"
+          ruby-version: "core-api/.ruby-version"
           working-directory: core-api
           bundler-cache: true
 
@@ -194,7 +194,7 @@ jobs:
 
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ".ruby-version"
+          ruby-version: "notifier/.ruby-version"
           working-directory: notifier
           bundler-cache: true
 
