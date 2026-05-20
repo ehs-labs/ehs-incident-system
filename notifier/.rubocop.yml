@@ -7,6 +7,10 @@ AllCops:
     - "tmp/**/*"
     - "vendor/**/*"
 
+# Match the relaxed posture of core-api (which uses rubocop-rails-omakase):
+# RuboCop is for catching real bugs, not enforcing aesthetics. Metrics-style
+# cops are reviewed in PR, not gated in CI.
+
 Style/Documentation:
   Enabled: false
 
@@ -15,17 +19,22 @@ Style/Documentation:
 Style/QuotedSymbols:
   Enabled: false
 
-# ENV['X'] is fine; we don't want every access to be ENV.fetch('X', nil).
+# ENV['X'] is fine.
 Style/FetchEnvVar:
   Enabled: false
 
-Metrics/BlockLength:
-  Exclude:
-    - "spec/**/*"
-    - "Rakefile"
-    - "config.ru"
+# Multiple classes in one config file (e.g. karafka.rb) is intentional.
+Style/OneClassPerFile:
+  Enabled: false
 
-Metrics/MethodLength:
+# Dir[...].sort is explicit and intentional; we want stable load order.
+Lint/RedundantDirGlobSort:
+  Enabled: false
+
+Lint/AmbiguousOperatorPrecedence:
+  Enabled: false
+
+Lint/UnusedBlockArgument:
   Exclude:
     - "spec/**/*"
 
@@ -37,6 +46,7 @@ Layout/LineLength:
 Naming/MethodParameterName:
   MinNameLength: 2
 
-Lint/UnusedBlockArgument:
-  Exclude:
-    - "spec/**/*"
+# Disable all Metrics/* cops — these are subjective complexity heuristics
+# that produce noise without catching real defects.
+Metrics:
+  Enabled: false
