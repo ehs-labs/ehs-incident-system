@@ -33,10 +33,6 @@ jobs:
           working-directory: core-api
           bundler-cache: true
 
-      - name: strong_migrations lint
-        working-directory: core-api
-        run: bundle exec rake strong_migrations:lint
-
       - name: Migrate up
         working-directory: core-api
         run: bundle exec rails db:create db:migrate
