@@ -331,10 +331,13 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.service }}
-          # core-api and notifier reference the shared local-path gem
-          # via an additional build context. Harmless to set for frontend.
+          # core-api and notifier reference the shared local-path gem and the
+          # Avro schemas via named build contexts (see their Dockerfiles'
+          # COPY --from=shared-envelope / --from=schemas). Same set as
+          # docker-compose.yml's additional_contexts. Harmless for frontend.
           build-contexts: |
             shared-envelope=shared/envelope
+            schemas=schemas/events/v1
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/ehs-${{ matrix.service }}:latest
