@@ -10,14 +10,29 @@ AllCops:
 Style/Documentation:
   Enabled: false
 
+# librdkafka uses dotted keys like :"sasl.mechanisms" — double-quoted symbols
+# are correct here, not a style smell.
+Style/QuotedSymbols:
+  Enabled: false
+
+# ENV['X'] is fine; we don't want every access to be ENV.fetch('X', nil).
+Style/FetchEnvVar:
+  Enabled: false
+
 Metrics/BlockLength:
   Exclude:
     - "spec/**/*"
     - "Rakefile"
     - "config.ru"
 
+Metrics/MethodLength:
+  Exclude:
+    - "spec/**/*"
+
 Layout/LineLength:
   Max: 120
+  Exclude:
+    - "spec/**/*"
 
 Naming/MethodParameterName:
   MinNameLength: 2

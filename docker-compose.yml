@@ -220,6 +220,12 @@ services:
     # Same image as core-api (same Dockerfile, different command). Sharing the
     # image guarantees they stay in lockstep — no risk of a stale sidekiq
     # build lagging behind a fresh core-api build.
+    build:
+      context: ./core-api
+      dockerfile: Dockerfile
+      additional_contexts:
+        shared-envelope: ./shared/envelope
+        schemas: ./schemas/events/v1
     image: ehs-incident-system-core-api
     command: bundle exec sidekiq -C config/sidekiq.yml
     depends_on:
