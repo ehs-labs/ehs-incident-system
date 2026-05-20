@@ -253,26 +253,35 @@ jobs:
           name: openapi
           path: core-api
 
+      - name: Copy env template
+        run: cp .env.example .env
+
+      - name: Start Kafka + Karapace
+        run: docker compose up -d --wait kafka karapace
+        timeout-minutes: 5
+
       - name: Validate Avro schemas
         run: |
-          # Karapace runs locally on port 8081 in this job's scratch container
-          docker run -d --name karapace -p 8081:8081 \
-            -e KARAPACE_REGISTRY_HOST=0.0.0.0 \
-            ghcr.io/aiven/karapace:latest
-          # Wait for Karapace
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            curl -sf http://localhost:8081/subjects && break || sleep 2
-          done
-          # Register each schema; non-zero exit means incompatible
           for schema in schemas/events/v1/*.avsc; do
             echo "Registering $schema"
             subject=$(basename "$schema" .avsc)-value
             payload=$(jq -Rs '{schema: ., schemaType: "AVRO"}' < "$schema")
-            curl -sf -X POST -H "Content-Type: application/vnd.schemaregistry.v1+json" \
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Content-Type: application/vnd.schemaregistry.v1+json" \
               -d "$payload" \
-              "http://localhost:8081/subjects/$subject/versions" \
-              || { echo "::error::Schema $schema failed to register"; exit 1; }
+              "http://localhost:8081/subjects/$subject/versions")
+            code=$(printf '%s' "$response" | tail -n1)
+            body=$(printf '%s' "$response" | sed '$d')
+            if [ "$code" -ge 400 ]; then
+              echo "::error::Schema $schema failed (HTTP $code): $body"
+              exit 1
+            fi
+            echo "  -> HTTP $code $body"
           done
+
+      - name: Capture karapace logs on failure
+        if: failure()
+        run: docker compose logs kafka karapace
 
   # ---------------------------------------------------------------------------
   # Build images & push to GHCR — only on main branch
