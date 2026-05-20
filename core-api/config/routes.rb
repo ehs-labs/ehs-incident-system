@@ -6,8 +6,9 @@ Rails.application.routes.draw do
   require "sidekiq/web"
   mount Sidekiq::Web => "/sidekiq"
 
-  # OpenAPI / Swagger UI — only when rswag is loaded (dev/test)
-  if defined?(Rswag::Ui) && defined?(Rswag::Api)
+  # OpenAPI / Swagger UI — local-only. Rswag::Api serves the committed
+  # openapi.yaml at /api-docs/openapi.yaml; Rswag::Ui serves the Swagger UI.
+  if Rails.env.development?
     mount Rswag::Ui::Engine  => "/api-docs"
     mount Rswag::Api::Engine => "/api-docs"
   end
