@@ -4,7 +4,7 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
 
     resource "/api/*",
              headers: :any,
-             methods: [:get, :post, :put, :patch, :delete, :options, :head],
+             methods: [ :get, :post, :put, :patch, :delete, :options, :head ],
              expose: %w[Authorization Link X-Total-Count],
              # Required because the frontend axios client sets withCredentials:true
              # (it sends the refresh cookie alongside the Bearer JWT). With
@@ -19,6 +19,6 @@ Rails.application.config.middleware.insert_before 0, Rack::Cors do
     # AttachmentSerializer#url returns 200 to curl but the browser drops it.
     resource "/rails/active_storage/*",
              headers: :any,
-             methods: [:get, :head, :options]
+             methods: [ :get, :head, :options ]
   end
 end

@@ -1,11 +1,13 @@
+# frozen_string_literal: true
+
 class IncidentsConsumer < Karafka::BaseConsumer
   def consume
     messages.each do |message|
-      event = message.payload   # decoded by AvroDeserializer (Avro or JSON-fallback)
+      event = message.payload # decoded by AvroDeserializer (Avro or JSON-fallback)
 
       # Defensive: malformed historical messages can lack event_id (idempotency
       # key for DeliveryLog). Skip with a warning rather than retry-forever.
-      unless event.is_a?(Hash) && event["event_id"]
+      unless event.is_a?(Hash) && event['event_id']
         Karafka.logger.warn("[IncidentsConsumer] skipping malformed message offset=#{message.offset} (keys=#{event.is_a?(Hash) ? event.keys.inspect : event.class})")
         next
       end

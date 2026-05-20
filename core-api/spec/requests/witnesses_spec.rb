@@ -24,7 +24,7 @@ RSpec.describe "Witnesses API", type: :request do
     get "List witnesses for an incident" do
       tags "witnesses"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
       let!(:witness) { create(:witness, incident: incident) }
@@ -51,14 +51,14 @@ RSpec.describe "Witnesses API", type: :request do
       tags "witnesses"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
         properties: {
           witness: {
             type: :object,
-            required: ["name"],
+            required: [ "name" ],
             properties: {
               name:      { type: :string },
               email:     { type: :string, format: :email },
@@ -107,7 +107,7 @@ RSpec.describe "Witnesses API", type: :request do
       tags "witnesses"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
@@ -144,7 +144,7 @@ RSpec.describe "Witnesses API", type: :request do
 
     delete "Delete a witness" do
       tags "witnesses"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(investigator)}" }
 

@@ -1,58 +1,60 @@
-source "https://rubygems.org"
+# frozen_string_literal: true
 
-ruby "3.4.1"
+source 'https://rubygems.org'
+
+ruby '3.4.1'
 
 # ----- Web framework + async runtime -----------------------------------------
-gem "sinatra", "~> 4.0"
-gem "sinatra-contrib"
-gem "rack", "~> 3.0"
-gem "puma"          # fallback HTTP for the /healthz endpoint
-gem "falcon"        # fiber-based async server for the WebSocket endpoint
-gem "async-websocket"
+gem 'async-websocket'
+gem 'falcon'        # fiber-based async server for the WebSocket endpoint
+gem 'puma'          # fallback HTTP for the /healthz endpoint
+gem 'rack', '~> 3.0'
+gem 'sinatra', '~> 4.0'
+gem 'sinatra-contrib'
 
 # ----- Kafka + Avro ----------------------------------------------------------
-gem "karafka"
-gem "avro_turf"
+gem 'avro_turf'
+gem 'karafka'
 
 # ----- Persistence -----------------------------------------------------------
-gem "pg"
-gem "sequel"
-gem "sequel-postgres-pr", require: false   # dev-only fallback if libpq missing
+gem 'pg'
+gem 'sequel'
+gem 'sequel-postgres-pr', require: false # dev-only fallback if libpq missing
 
 # ----- Email / Telegram ------------------------------------------------------
-gem "mail"
-gem "telegram-bot-ruby"
+gem 'mail'
+gem 'telegram-bot-ruby'
 
 # ----- Auth (JWT verification only — issuance lives in core-api) -------------
-gem "jwt"
+gem 'jwt'
 
 # ----- Shared field-level cipher ---------------------------------------------
-gem "ehs-envelope", path: "../shared/envelope"
+gem 'ehs-envelope', path: '../shared/envelope'
 
 # ----- Operational signals ---------------------------------------------------
-gem "dotenv"
-gem "lograge-sql", require: false
-gem "prometheus_exporter"
-gem "opentelemetry-sdk"
+gem 'dotenv'
+gem 'lograge-sql', require: false
+gem 'opentelemetry-sdk'
+gem 'prometheus_exporter'
 
 # ----- IDs -------------------------------------------------------------------
-gem "ulid-ruby", require: "ulid"
+gem 'ulid-ruby', require: 'ulid'
 
 # ----- Misc ------------------------------------------------------------------
-gem "rake"
+gem 'rake'
 
 group :development, :test do
-  gem "rspec"
-  gem "karafka-testing"
-  gem "factory_bot"
-  gem "faker"
-  gem "rubocop"
-  gem "bundler-audit", require: false
+  gem 'bundler-audit', require: false
+  gem 'factory_bot'
+  gem 'faker'
+  gem 'karafka-testing'
+  gem 'rspec'
+  gem 'rubocop'
 end
 
 group :test do
-  gem "rack-test"
-  gem "webmock"
-  gem "vcr"
-  gem "simplecov", require: false
+  gem 'rack-test'
+  gem 'simplecov', require: false
+  gem 'vcr'
+  gem 'webmock'
 end

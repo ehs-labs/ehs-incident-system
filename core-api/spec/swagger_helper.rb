@@ -34,7 +34,7 @@ RSpec.configure do |config|
         { url: "http://localhost:3000", description: "Local dev (docker-compose)" },
         { url: "https://api.ehs.example.com", description: "Production placeholder" }
       ],
-      security: [{ bearerAuth: [] }],
+      security: [ { bearerAuth: [] } ],
       components: {
         securitySchemes: {
           bearerAuth: {

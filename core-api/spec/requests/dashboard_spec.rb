@@ -20,7 +20,7 @@ RSpec.describe "Dashboard API", type: :request do
     get "Summary stats for current user" do
       tags "dashboard"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
 

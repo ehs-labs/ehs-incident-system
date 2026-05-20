@@ -14,9 +14,9 @@ Devise.setup do |config|
   require "devise/orm/active_record"
 
   # ----- General authentication --------------------------------------------
-  config.case_insensitive_keys = [:email]
-  config.strip_whitespace_keys = [:email]
-  config.skip_session_storage  = [:http_auth]
+  config.case_insensitive_keys = [ :email ]
+  config.strip_whitespace_keys = [ :email ]
+  config.skip_session_storage  = [ :http_auth ]
   config.stretches             = Rails.env.test? ? 1 : 12
   config.reconfirmable         = true
   config.expire_all_remember_me_on_sign_out = true
@@ -40,11 +40,11 @@ Devise.setup do |config|
   config.jwt do |jwt|
     jwt.secret = ENV.fetch("JWT_SECRET")
     jwt.dispatch_requests = [
-      ["POST", %r{^/api/v1/auth/login$}],
-      ["POST", %r{^/api/v1/auth/signup$}]
+      [ "POST", %r{^/api/v1/auth/login$} ],
+      [ "POST", %r{^/api/v1/auth/signup$} ]
     ]
     jwt.revocation_requests = [
-      ["DELETE", %r{^/api/v1/auth/logout$}]
+      [ "DELETE", %r{^/api/v1/auth/logout$} ]
     ]
     jwt.expiration_time = 15.minutes.to_i   # short-lived; refresh cookie handles long sessions
   end

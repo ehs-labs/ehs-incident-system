@@ -39,7 +39,7 @@ module Api
             AND ca.due_date < :now
         SQL
         ActiveRecord::Base.connection.exec_query(
-          ActiveRecord::Base.sanitize_sql([sql, { now: Time.current }])
+          ActiveRecord::Base.sanitize_sql([ sql, { now: Time.current } ])
         ).rows.flatten.first.to_i
       rescue ActiveRecord::StatementInvalid
         0
@@ -72,7 +72,7 @@ module Api
       end
 
       def sla_compliance(scope)
-        windows = { "S1_S2" => [1, 2], "S3" => [3], "S4_S5" => [4, 5] }
+        windows = { "S1_S2" => [ 1, 2 ], "S3" => [ 3 ], "S4_S5" => [ 4, 5 ] }
 
         # Triage occurred = triaged_at present. SLA met if triaged_at - submitted_at <= sla.
         # Use Incident#triage_sla for per-org overrides — must iterate, but only over the

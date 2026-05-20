@@ -13,7 +13,7 @@ module Api
                                      .page(params[:page]).per(params[:per_page] || 25)
 
         pagination_link_header(scope)
-        render json: CommentSerializer.new(scope.to_a, include: [:author]).serializable_hash
+        render json: CommentSerializer.new(scope.to_a, include: [ :author ]).serializable_hash
       end
 
       # POST /api/v1/incidents/:incident_id/comments

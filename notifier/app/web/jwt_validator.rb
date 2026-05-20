@@ -1,4 +1,6 @@
-require "jwt"
+# frozen_string_literal: true
+
+require 'jwt'
 
 module Notifier
   module Web
@@ -12,18 +14,18 @@ module Notifier
           token,
           secret,
           true,
-          algorithm: "HS256",
+          algorithm: 'HS256',
           verify_expiration: true
         )
-        payload["sub"] || payload["user_id"]
+        payload['sub'] || payload['user_id']
       rescue JWT::DecodeError
         nil
       end
 
       def secret
-        ENV["JWT_SECRET"] ||
-          (path = ENV["JWT_SECRET_FILE"]) && File.read(path).strip ||
-          raise("JWT_SECRET not configured")
+        ENV['JWT_SECRET'] ||
+          (path = ENV['JWT_SECRET_FILE']) && File.read(path).strip ||
+          raise('JWT_SECRET not configured')
       end
     end
   end

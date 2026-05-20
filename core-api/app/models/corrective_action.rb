@@ -61,13 +61,13 @@ class CorrectiveAction < ApplicationRecord
   # are awkward (assignee may change in the same save), so we mirror Incident
   # and trigger from the controller explicitly.
   def publish_assigned_event!
-    publish_event!("CorrectiveActionAssigned", recipient_user_ids: [assignee_id].compact)
+    publish_event!("CorrectiveActionAssigned", recipient_user_ids: [ assignee_id ].compact)
   end
 
   def publish_overdue_event!
     publish_event!(
       "CorrectiveActionOverdue",
-      recipient_user_ids: [incident.reporter_id, assignee_id].compact.uniq,
+      recipient_user_ids: [ incident.reporter_id, assignee_id ].compact.uniq,
       actor_id_override: "system"
     )
   end

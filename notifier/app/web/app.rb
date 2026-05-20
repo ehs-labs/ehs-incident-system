@@ -1,9 +1,11 @@
-require "sinatra/base"
-require "sinatra/json"
-require "async/websocket/adapters/rack"
+# frozen_string_literal: true
 
-require_relative "ws_server"
-require_relative "jwt_validator"
+require 'sinatra/base'
+require 'sinatra/json'
+require 'async/websocket/adapters/rack'
+
+require_relative 'ws_server'
+require_relative 'jwt_validator'
 
 module Notifier
   module Web
@@ -15,19 +17,19 @@ module Notifier
       end
 
       # ------------------------------------------------------------------- HC
-      get "/healthz" do
-        json status: "ok", time: Time.now.utc.iso8601
+      get '/healthz' do
+        json status: 'ok', time: Time.now.utc.iso8601
       end
 
       # ------------------------------------------------------------------- WS
       # wss://notifier.../ws?token=<jwt>
-      get "/ws" do
-        token = params["token"] or halt 401, "missing token"
-        user_id = JwtValidator.user_id_from(token) or halt 401, "invalid token"
+      get '/ws' do
+        token = params['token'] or halt 401, 'missing token'
+        user_id = JwtValidator.user_id_from(token) or halt 401, 'invalid token'
 
-        Async::WebSocket::Adapters::Rack.open(env, protocols: ["ehs.v1"]) do |ws|
+        Async::WebSocket::Adapters::Rack.open(env, protocols: ['ehs.v1']) do |ws|
           WsServer.handle(ws, user_id: user_id)
-        end || halt(400, "websocket upgrade required")
+        end || halt(400, 'websocket upgrade required')
       end
     end
   end

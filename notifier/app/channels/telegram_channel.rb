@@ -1,21 +1,23 @@
-require "telegram/bot"
+# frozen_string_literal: true
+
+require 'telegram/bot'
 
 module Channels
   module TelegramChannel
     module_function
 
     def deliver(user:, log:)
-      token = ENV["TELEGRAM_BOT_TOKEN"]
+      token = ENV['TELEGRAM_BOT_TOKEN']
       if token.nil? || token.empty?
-        log.mark_failed!(:telegram, "TELEGRAM_BOT_TOKEN not configured")
+        log.mark_failed!(:telegram, 'TELEGRAM_BOT_TOKEN not configured')
         return
       end
 
       Telegram::Bot::Client.run(token) do |bot|
         bot.api.send_message(
           chat_id: user.telegram_chat_id,
-          text:    "*#{log.title}*\n#{log.body}\n#{ENV.fetch('APP_HOST', 'http://localhost:5173')}#{log.link}",
-          parse_mode: "Markdown"
+          text: "*#{log.title}*\n#{log.body}\n#{ENV.fetch('APP_HOST', 'http://localhost:5173')}#{log.link}",
+          parse_mode: 'Markdown'
         )
       end
 

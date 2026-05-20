@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # ============================================================================
 # Karafka boot file — the `karafka server` CLI looks for this at app root.
 #
@@ -5,15 +7,15 @@
 # Bundler gems), then defines the Karafka app + Avro deserializer + routes.
 # ============================================================================
 
-require_relative "config/boot"
+require_relative 'config/boot'
 
 # Karafka's logger writes to stdout via the configured Ruby Logger; force the
 # stream to flush per-line so container logs surface in real time.
 $stdout.sync = true
 $stderr.sync = true
 
-require "karafka"
-require "avro_turf/messaging"
+require 'karafka'
+require 'avro_turf/messaging'
 
 # -----------------------------------------------------------------------------
 # Avro deserializer — resolves schemas by ID from Karapace.
@@ -24,8 +26,13 @@ require "avro_turf/messaging"
 # consumer can branch on it.
 # -----------------------------------------------------------------------------
 AVRO_MESSAGING = AvroTurf::Messaging.new(
-  registry_url: ENV.fetch("KARAPACE_URL", "http://karapace:8081"),
-  schemas_path: File.directory?("/schemas/events/v1") ? "/schemas/events/v1" : File.expand_path("../schemas/events/v1", __dir__)
+  registry_url: ENV.fetch('KARAPACE_URL', 'http://karapace:8081'),
+  schemas_path: if File.directory?('/schemas/events/v1')
+                  '/schemas/events/v1'
+                else
+                  File.expand_path('../schemas/events/v1',
+                                   __dir__)
+                end
 )
 
 class AvroDeserializer
@@ -48,31 +55,29 @@ end
 
 # Consumer classes inherit from Karafka::BaseConsumer so they MUST load after
 # `require "karafka"`. boot.rb eager-loads models/handlers/channels only.
-Dir[File.expand_path("app/consumers/**/*.rb", __dir__)].sort.each { |f| require f }
+Dir[File.expand_path('app/consumers/**/*.rb', __dir__)].sort.each { |f| require f }
 
 # -----------------------------------------------------------------------------
 # Karafka application
 # -----------------------------------------------------------------------------
 class NotifierApp < Karafka::App
   setup do |config|
-    security_protocol = ENV.fetch("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+    security_protocol = ENV.fetch('KAFKA_SECURITY_PROTOCOL', 'PLAINTEXT')
     kafka_config = {
-      :"bootstrap.servers" => ENV.fetch("KAFKA_BROKERS", "kafka:9092"),
-      :"client.id"         => "ehs-notifier",
-      :"auto.offset.reset" => "earliest",
-      :"security.protocol" => security_protocol
+      "bootstrap.servers": ENV.fetch('KAFKA_BROKERS', 'kafka:9092'),
+      "client.id": 'ehs-notifier',
+      "auto.offset.reset": 'earliest',
+      "security.protocol": security_protocol
     }
-    if security_protocol.include?("SASL")
-      kafka_config[:"sasl.mechanisms"] = ENV.fetch("KAFKA_SASL_MECHANISM", "SCRAM-SHA-512")
-      kafka_config[:"sasl.username"]   = ENV.fetch("KAFKA_SASL_USERNAME")
-      kafka_config[:"sasl.password"]   = ENV.fetch("KAFKA_SASL_PASSWORD")
+    if security_protocol.include?('SASL')
+      kafka_config[:"sasl.mechanisms"] = ENV.fetch('KAFKA_SASL_MECHANISM', 'SCRAM-SHA-512')
+      kafka_config[:"sasl.username"]   = ENV.fetch('KAFKA_SASL_USERNAME')
+      kafka_config[:"sasl.password"]   = ENV.fetch('KAFKA_SASL_PASSWORD')
     end
-    if ENV["KAFKA_TLS_CA_FILE"]
-      kafka_config[:"ssl.ca.location"] = ENV.fetch("KAFKA_TLS_CA_FILE")
-    end
+    kafka_config[:"ssl.ca.location"] = ENV.fetch('KAFKA_TLS_CA_FILE') if ENV['KAFKA_TLS_CA_FILE']
     config.kafka = kafka_config
-    config.client_id = "ehs-notifier"
-    config.logger     = Logger.new($stdout)
+    config.client_id = 'ehs-notifier'
+    config.logger = Logger.new($stdout)
     # Our topic names mix dots and underscores (corrective_actions.v1, users.v1)
     # which Karafka 2.4+ flags by default. The producer side and topic registry
     # are already set with this convention, so we relax the check.
@@ -86,15 +91,15 @@ class NotifierApp < Karafka::App
     avro = AvroDeserializer.new
 
     consumer_group :domain_events do
-      topic "incidents.v1" do
+      topic 'incidents.v1' do
         consumer IncidentsConsumer
         deserializers payload: avro
       end
-      topic "corrective_actions.v1" do
+      topic 'corrective_actions.v1' do
         consumer CorrectiveActionsConsumer
         deserializers payload: avro
       end
-      topic "system.v1" do
+      topic 'system.v1' do
         consumer SystemConsumer
         deserializers payload: avro
       end
@@ -102,7 +107,7 @@ class NotifierApp < Karafka::App
 
     consumer_group :reference_data do
       # Log-compacted — start from beginning so we rebuild users_mirror on cold start
-      topic "users.v1" do
+      topic 'users.v1' do
         consumer UsersConsumer
         deserializers payload: avro
       end

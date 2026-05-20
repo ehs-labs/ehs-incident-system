@@ -24,7 +24,7 @@ RSpec.describe "Comments API", type: :request do
     get "List comments on an incident" do
       tags "comments"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let(:Authorization) { "Bearer #{jwt_for(admin)}" }
       let!(:comment) { create(:comment, incident: incident, author: investigator) }
@@ -42,14 +42,14 @@ RSpec.describe "Comments API", type: :request do
       tags "comments"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
         properties: {
           comment: {
             type: :object,
-            required: ["body"],
+            required: [ "body" ],
             properties: {
               body: { type: :string }
             }
@@ -98,7 +98,7 @@ RSpec.describe "Comments API", type: :request do
       tags "comments"
       consumes "application/json"
       produces "application/json"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       parameter name: :body, in: :body, required: true, schema: {
         type: :object,
@@ -141,7 +141,7 @@ RSpec.describe "Comments API", type: :request do
 
     delete "Delete a comment" do
       tags "comments"
-      security [{ bearerAuth: [] }]
+      security [ { bearerAuth: [] } ]
 
       let!(:authored_comment) { create(:comment, incident: incident, author: investigator) }
       let(:id)                { authored_comment.id }

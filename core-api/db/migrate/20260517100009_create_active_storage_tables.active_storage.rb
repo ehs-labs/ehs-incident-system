@@ -10,7 +10,7 @@ class CreateActiveStorageTables < ActiveRecord::Migration[7.2]
       t.string   :checksum
       t.datetime :created_at,   null: false
 
-      t.index [:key], unique: true
+      t.index [ :key ], unique: true
     end
 
     create_table :active_storage_attachments do |t|
