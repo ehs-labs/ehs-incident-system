@@ -37,16 +37,16 @@ jobs:
           bundle install
           bundle exec rubocop --parallel --no-color
 
+      - uses: pnpm/action-setup@v3
+        with:
+          version: "9"
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - uses: pnpm/action-setup@v3
-        with:
-          version: "9"
 
       - name: Frontend lint
         working-directory: frontend
