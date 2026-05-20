@@ -1,0 +1,27 @@
+AllCops:
+  TargetRubyVersion: 3.4
+  NewCops: enable
+  Exclude:
+    - "bin/**/*"
+    - "db/migrate/**/*"
+    - "tmp/**/*"
+    - "vendor/**/*"
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "Rakefile"
+    - "config.ru"
+
+Layout/LineLength:
+  Max: 120
+
+Naming/MethodParameterName:
+  MinNameLength: 2
+
+Lint/UnusedBlockArgument:
+  Exclude:
+    - "spec/**/*"
