@@ -145,7 +145,8 @@ jobs:
       - name: DB setup
         working-directory: core-api
         run: |
-          bundle exec rails db:create db:schema:load
+          bundle exec rails db:create
+          bundle exec rails db:migrate
 
       - name: RSpec
         working-directory: core-api
