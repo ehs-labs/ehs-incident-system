@@ -79,3 +79,6 @@ updates:
     labels:
       - dependencies
       - docker
+    ignore:
+      - dependency-name: node
+        versions: ["26.x", "27.x"]
