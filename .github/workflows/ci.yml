@@ -48,7 +48,7 @@ jobs:
           bundle install --jobs 4 --retry 3
           bundle exec rubocop --parallel --no-color
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -104,7 +104,7 @@ jobs:
           bundle install --jobs 4 --retry 3
           bundle exec bundle-audit check --update
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -234,7 +234,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -449,7 +449,7 @@ jobs:
           docker compose up -d --wait $services
         timeout-minutes: 8
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
