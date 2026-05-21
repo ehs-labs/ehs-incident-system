@@ -34,7 +34,7 @@ jobs:
       # setup-ruby's bundler-cache only covers core-api's working-directory;
       # cache notifier's gems separately keyed on its Gemfile.lock.
       - name: Cache notifier bundle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: notifier/vendor/bundle
           key: bundle-notifier-${{ runner.os }}-ruby-4.0.5-${{ hashFiles('notifier/Gemfile.lock') }}
@@ -48,7 +48,7 @@ jobs:
           bundle install --jobs 4 --retry 3
           bundle exec rubocop --parallel --no-color
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -90,7 +90,7 @@ jobs:
         run: bundle exec bundle-audit check --update
 
       - name: Cache notifier bundle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: notifier/vendor/bundle
           key: bundle-notifier-${{ runner.os }}-ruby-4.0.5-${{ hashFiles('notifier/Gemfile.lock') }}
@@ -104,7 +104,7 @@ jobs:
           bundle install --jobs 4 --retry 3
           bundle exec bundle-audit check --update
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -234,7 +234,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -328,7 +328,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v5
+      - uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.service }}
           # core-api and notifier reference the shared local-path gem and the
@@ -367,7 +367,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Build core-api image (cached)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: core-api
           build-contexts: |
@@ -379,7 +379,7 @@ jobs:
           cache-to: type=gha,scope=core-api,mode=max
 
       - name: Build notifier image (cached)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: notifier
           build-contexts: |
@@ -391,7 +391,7 @@ jobs:
           cache-to: type=gha,scope=notifier,mode=max
 
       - name: Build frontend image (cached)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: frontend
           target: dev
@@ -449,7 +449,7 @@ jobs:
           docker compose up -d --wait $services
         timeout-minutes: 8
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v6
         with:
           version: "9"
 
@@ -467,7 +467,7 @@ jobs:
       # pnpm-lock.yaml so a Playwright version bump invalidates the cache.
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
