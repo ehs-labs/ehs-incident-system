@@ -18,7 +18,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -73,7 +73,7 @@ jobs:
     name: Security scans
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -154,7 +154,7 @@ jobs:
       JWT_DENYLIST_SECRET: ci-jwt-denylist-secret-replace-me
       FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -211,7 +211,7 @@ jobs:
       FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       JWT_SECRET: ci-jwt-secret-replace-me
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -232,7 +232,7 @@ jobs:
     name: Test frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v3
         with:
@@ -265,10 +265,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-core-api]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download OpenAPI artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: openapi
           path: core-api
@@ -318,9 +318,9 @@ jobs:
       matrix:
         service: [core-api, notifier, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - uses: docker/login-action@v4
         with:
@@ -353,7 +353,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-core-api, test-notifier, test-frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Copy env template
         run: cp .env.example .env
@@ -364,7 +364,7 @@ jobs:
       # missing). Cache scopes match build-images for core-api/notifier so the
       # caches are shared; frontend uses target: dev here, separate scope.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build core-api image (cached)
         uses: docker/build-push-action@v5
