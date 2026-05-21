@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-ruby "3.4.1"
+ruby "4.0.4"
 
 # ----- Core ------------------------------------------------------------------
 gem "rails", "~> 8.1"
@@ -68,6 +68,10 @@ gem "faker"
 # gated on Rails.env.development? — never exposed in production.
 gem "rswag-api"
 gem "rswag-ui"
+# rswag-ui transitively requires "ostruct"; on Ruby 4.0 ostruct is no longer
+# a default gem and must be declared explicitly until rswag-ui adds it to
+# its gemspec.
+gem "ostruct"
 
 group :development, :test do
   gem "rspec-rails"
