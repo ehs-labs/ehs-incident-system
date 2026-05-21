@@ -6,7 +6,7 @@
 # =============================================================================
 
 # ---------- Build stage ------------------------------------------------------
-FROM ruby:4.0.4-slim AS build
+FROM ruby:4.0.5-slim AS build
 
 # Gemfile.lock is committed; BUNDLE_DEPLOYMENT=1 enforces the lockfile and
 # fails loud if it is out of sync with the Gemfile.
@@ -49,7 +49,7 @@ COPY . .
 RUN bundle exec bootsnap precompile --gemfile app/ lib/
 
 # ---------- Final stage ------------------------------------------------------
-FROM ruby:4.0.4-slim AS final
+FROM ruby:4.0.5-slim AS final
 
 ENV BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
