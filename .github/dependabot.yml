@@ -43,6 +43,12 @@ updates:
     labels:
       - dependencies
       - frontend
+    ignore:
+      # Pin @types/node to the Node LTS line. frontend runs on Node 24 LTS
+      # (see frontend/Dockerfile + frontend/package.json:engines.node).
+      # Mirrors the docker `node` image ignore below.
+      - dependency-name: "@types/node"
+        versions: ["25.x", "26.x", "27.x"]
 
   # GitHub Actions
   - package-ecosystem: github-actions
