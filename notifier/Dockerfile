@@ -29,7 +29,9 @@ WORKDIR /app
 # Trailing * makes Gemfile.lock optional until committed.
 COPY Gemfile* ./
 
-RUN bundle install && \
+# Match BUNDLED WITH in Gemfile.lock so bundle install skips the self-bootstrap.
+RUN gem install bundler --no-document --version 4.0.12 && \
+    bundle install && \
     rm -rf "${BUNDLE_PATH}/ruby/*/cache"
 
 COPY . .
