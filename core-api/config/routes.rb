@@ -65,6 +65,7 @@ Rails.application.routes.draw do
       end
 
       resources :notifications, only: %i[index update]
+      resources :assignable_users, only: :index
       get "dashboard", to: "dashboard#show"
 
       # ----- Admin -----------------------------------------------------

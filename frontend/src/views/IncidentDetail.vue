@@ -41,7 +41,7 @@ import {
   createIncidentAction
 } from "@/api/incidents";
 import { transitionAction } from "@/api/actions";
-import { listOrgUsers } from "@/api/admin";
+import { listAssignableUsers } from "@/api/users";
 import { useAuthStore } from "@/stores/auth";
 import { findIncluded } from "@/utils/jsonapi";
 import {
@@ -185,15 +185,17 @@ async function loadAux() {
 async function loadOrgUsers() {
   if (auth.user?.role !== "admin" && auth.user?.role !== "investigator") return;
   try {
-    const res = await listOrgUsers();
+    const res = await listAssignableUsers();
     orgUsers.value = res.data.map((r) => ({
       id: r.id,
       name: r.attributes.name ?? "",
       email: r.attributes.email ?? "",
       role: r.attributes.role ?? "worker"
     }));
-  } catch {
-    /* fine — pickers fall back to read-only */
+  } catch (e) {
+    message.error(
+      `Could not load assignee list: ${(e as ApiError).message ?? "unknown error"}`
+    );
   }
 }
 
