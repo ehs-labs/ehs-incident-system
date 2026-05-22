@@ -3,6 +3,7 @@ import type {
   JsonApiList,
   JsonApiSingle,
   CorrectiveActionAttributes,
+  CorrectiveActionEventAttributes,
   ActionState
 } from "@/types/api";
 
@@ -28,11 +29,19 @@ export type ActionTransition = "start" | "complete" | "verify" | "cancel";
 
 export async function transitionAction(
   id: string | number,
-  event: ActionTransition
+  event: ActionTransition,
+  note?: string
 ) {
   const res = await api.post<JsonApiSingle<CorrectiveActionAttributes>>(
     `/corrective_actions/${id}/transitions`,
-    { event }
+    { event, note }
+  );
+  return res.data;
+}
+
+export async function listActionEvents(id: string | number) {
+  const res = await api.get<JsonApiList<CorrectiveActionEventAttributes>>(
+    `/corrective_actions/${id}/events`
   );
   return res.data;
 }

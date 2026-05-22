@@ -130,6 +130,13 @@ export type CorrectiveActionAttributes = components["schemas"]["CorrectiveAction
   evidence_blob_ids: string[];
 };
 
+export interface CorrectiveActionEventAttributes {
+  event_name: "assigned" | "started" | "completed" | "verified" | "cancelled";
+  note: string | null;
+  actor_id: number;
+  created_at: string;
+}
+
 export interface WitnessAttributes {
   name: string;
   email: string | null;
