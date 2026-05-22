@@ -41,6 +41,20 @@ stateDiagram-v2
     verified --> [*]
 ```
 
+### Activity feed and notes
+
+Every transition — including the implicit `assigned` at creation — writes a
+row to `corrective_action_events` capturing the actor, the timestamp, and an
+operator-supplied optional note. The same AASM `after` callback that writes
+the audit row also emits the corresponding outbox event
+(`CorrectiveActionAssigned`, `CorrectiveActionStarted`,
+`CorrectiveActionCompleted`, `CorrectiveActionVerified`,
+`CorrectiveActionCancelled`). The note travels in the Avro subject so the
+notifier can interpolate it directly into email + in-app bodies without
+re-querying the audit log. The SPA reads the audit table via
+`GET /corrective_actions/:id/events` to render a chronological Activity
+timeline.
+
 ### SLA-driven defaults
 
 Due dates default from incident severity (overridable):

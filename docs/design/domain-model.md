@@ -81,8 +81,16 @@ erDiagram
         string title
         text description
         date due_date
-        enum state "open | in_progress | done | verified"
+        enum state "open | in_progress | done | verified | cancelled"
         datetime completed_at
+    }
+    CORRECTIVE_ACTION_EVENT {
+        ulid id PK
+        ulid corrective_action_id FK
+        enum event_name "assigned | started | completed | verified | cancelled"
+        ulid actor_id FK
+        text note
+        datetime created_at
     }
     COMMENT {
         ulid id PK
@@ -109,11 +117,18 @@ erDiagram
 
 Full diagrams: [state-machines.md](state-machines.md).
 
-## PaperTrail audit
+## PaperTrail audit and domain event logs
 
 Versions are written for every change on `Incident` and `CorrectiveAction`.
 This is critical for the EHS narrative — incident records must be defensible in
 regulatory reviews, which means "who changed what when" is non-negotiable.
+
+`corrective_action_events` is a separate append-only **domain audit log**
+distinct from PaperTrail's `versions` table. It captures *who made which state
+transition with what note*, while `versions` captures *what attribute diffs
+were applied*. Both serve compliance, but the SPA's Activity feed reads from
+`corrective_action_events`, which gives it operator-level semantics (started,
+completed, verified, etc.) without unpacking attribute diffs.
 
 ## Search
 

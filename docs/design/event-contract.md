@@ -42,9 +42,15 @@ flowchart LR
 | Topic | Key | Compaction | Schemas |
 |---|---|---|---|
 | `incidents.v1` | `org_id` | log (default) | `IncidentSubmitted`, `IncidentAssigned`, `IncidentClosed` |
-| `corrective_actions.v1` | `org_id` | log | `CorrectiveActionAssigned`, `CorrectiveActionOverdue` |
+| `corrective_actions.v1` | `org_id` | log | `CorrectiveActionAssigned`, `CorrectiveActionStarted`, `CorrectiveActionCompleted`, `CorrectiveActionVerified`, `CorrectiveActionCancelled`, `CorrectiveActionOverdue` |
 | `users.v1` | `user_id` | **compact** | `UserUpserted` |
 | `system.v1` | `org_id` | log | `SlaBreached` |
+
+All corrective-action events share an optional `note: ["null", "string"]`
+field on their subject record, carrying the operator-supplied context for that
+transition. The notifier interpolates it into the email + in-app body when
+present. The schema's `null` default keeps replayed events backward-compatible
+when the field was added.
 
 The `incidents.v1` topic is keyed by `org_id` so per-tenant event order is
 preserved (a single partition for a tenant means all its events arrive in the
