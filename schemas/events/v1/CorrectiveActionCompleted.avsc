@@ -60,6 +60,11 @@
               "type": "long",
               "logicalType": "timestamp-millis"
             }
+          },
+          {
+            "name": "note",
+            "type": ["null", "string"],
+            "default": null
           }
         ]
       }

@@ -61,6 +61,11 @@
           {
             "name": "days_overdue",
             "type": "int"
+          },
+          {
+            "name": "note",
+            "type": ["null", "string"],
+            "default": null
           }
         ]
       }
