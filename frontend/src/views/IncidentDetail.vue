@@ -40,7 +40,7 @@ import {
   listIncidentActions,
   createIncidentAction
 } from "@/api/incidents";
-import { transitionAction } from "@/api/actions";
+import { transitionAction, type ActionTransition } from "@/api/actions";
 import { listAssignableUsers } from "@/api/users";
 import { useAuthStore } from "@/stores/auth";
 import { findIncluded } from "@/utils/jsonapi";
@@ -313,6 +313,7 @@ async function onUpload({ file }: { file: { file?: File | null } }) {
 const newAction = ref({
   title: "",
   description: "",
+  note: "",
   due_date: Date.now() + 7 * 24 * 3600_000,
   assignee_id: null as number | null
 });
@@ -327,12 +328,14 @@ async function postAction() {
     await createIncidentAction(incidentId.value, {
       title: newAction.value.title,
       description: newAction.value.description,
+      note: newAction.value.note || undefined,
       due_date: new Date(newAction.value.due_date).toISOString(),
       assignee_id: newAction.value.assignee_id
     });
     newAction.value = {
       title: "",
       description: "",
+      note: "",
       due_date: Date.now() + 7 * 24 * 3600_000,
       assignee_id: null
     };
@@ -343,17 +346,48 @@ async function postAction() {
   }
 }
 
-async function actionTransition(
-  actionId: string,
-  event: "start" | "complete" | "verify"
-) {
+// ---- transition dialog ------------------------------------------------------
+//
+// Every transition opens this dialog so the operator can attach an optional
+// note before the state change fires. Confirming POSTs to /transitions with
+// { event, note }.
+const TRANSITION_TITLES: Record<ActionTransition, string> = {
+  start:    "Start action",
+  complete: "Mark as done",
+  verify:   "Verify action",
+  cancel:   "Cancel action"
+};
+
+const transitionDialog = ref<{
+  show: boolean;
+  actionId: string | null;
+  event: ActionTransition | null;
+  note: string;
+}>({
+  show: false,
+  actionId: null,
+  event: null,
+  note: ""
+});
+
+const transitionDialogTitle = computed(() =>
+  transitionDialog.value.event ? TRANSITION_TITLES[transitionDialog.value.event] : ""
+);
+
+function openTransitionDialog(actionId: string, event: ActionTransition) {
+  transitionDialog.value = { show: true, actionId, event, note: "" };
+}
+
+async function confirmTransition() {
+  const { actionId, event, note } = transitionDialog.value;
+  if (!actionId || !event) return;
   try {
-    await transitionAction(actionId, event);
+    await transitionAction(actionId, event, note || undefined);
+    transitionDialog.value.show = false;
     message.success(`Action: ${event}`);
-    // Reload the incident itself too: verifying the last corrective action
-    // triggers maybe_close_parent_incident! on the backend, which auto-closes
-    // the incident. loadAux() alone does not refresh incident.value.
-    await Promise.all([loadIncident(), loadAux()]);
+    // Verifying the last corrective action auto-closes the parent incident on
+    // the backend, so we have to reload both views (loadAux alone misses it).
+    await Promise.all([ loadIncident(), loadAux() ]);
   } catch (e) {
     message.error(`Action transition failed: ${(e as ApiError).message}`);
   }
@@ -767,6 +801,14 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
                       :autosize="{ minRows: 2 }"
                     />
                   </n-form-item>
+                  <n-form-item label="Note for assignee (optional)">
+                    <n-input
+                      v-model:value="newAction.note"
+                      type="textarea"
+                      :autosize="{ minRows: 2, maxRows: 4 }"
+                      placeholder="Why are you assigning this now? Context for the worker."
+                    />
+                  </n-form-item>
                   <n-form-item label="Due date">
                     <n-date-picker
                       v-model:value="newAction.due_date"
@@ -823,7 +865,7 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
                         v-for="ev in allowedForAction(a.attrs.state, a.attrs.assignee_id)"
                         :key="ev"
                         size="small"
-                        @click="actionTransition(a.id, ev)"
+                        @click="openTransitionDialog(a.id, ev)"
                       >
                         {{ ev }}
                       </n-button>
@@ -887,6 +929,23 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
         </n-card>
       </template>
     </n-spin>
+
+    <n-modal
+      v-model:show="transitionDialog.show"
+      preset="dialog"
+      :title="transitionDialogTitle"
+      positive-text="Confirm"
+      negative-text="Cancel"
+      @positive-click="confirmTransition"
+      @negative-click="transitionDialog.show = false"
+    >
+      <n-input
+        v-model:value="transitionDialog.note"
+        type="textarea"
+        :autosize="{ minRows: 2, maxRows: 6 }"
+        placeholder="Optional note"
+      />
+    </n-modal>
   </n-space>
 </template>
 
