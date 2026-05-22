@@ -93,7 +93,8 @@ RSpec.describe "Corrective Actions API", type: :request do
               title:       { type: :string },
               description: { type: :string },
               due_date:    { type: :string, format: :"date-time" },
-              assignee_id: { type: :integer }
+              assignee_id: { type: :integer },
+              note:        { type: :string }
             }
           }
         }
@@ -118,6 +119,27 @@ RSpec.describe "Corrective Actions API", type: :request do
           expect(data.dig("data", "attributes", "title")).to eq("Inspect aisle 4 forklift")
           # The outbox event is emitted on create — verify a new event was added.
           expect(OutboxEvent.where(event_type: "CorrectiveActionAssigned").count).to be >= 1
+        end
+      end
+
+      response "201", "Created — note is recorded as the :assigned audit event" do
+        let(:body) do
+          {
+            corrective_action: {
+              title:       "Replace forklift wheel",
+              description: "Worn tread.",
+              due_date:    5.days.from_now.iso8601,
+              assignee_id: assignee.id,
+              note:        "Spotted during walkthrough; please prioritize."
+            }
+          }
+        end
+
+        run_test! do |response|
+          action_id = JSON.parse(response.body).dig("data", "id").to_i
+          evt = CorrectiveActionEvent.find_by!(corrective_action_id: action_id, event_name: "assigned")
+          expect(evt.note).to eq("Spotted during walkthrough; please prioritize.")
+          expect(evt.actor_id).to eq(investigator.id)
         end
       end
 
@@ -226,7 +248,8 @@ RSpec.describe "Corrective Actions API", type: :request do
         type: :object,
         required: [ "event" ],
         properties: {
-          event: { type: :string, enum: %w[start complete verify cancel] }
+          event: { type: :string, enum: %w[start complete verify cancel] },
+          note:  { type: :string }
         }
       }
 
@@ -236,6 +259,18 @@ RSpec.describe "Corrective Actions API", type: :request do
 
         run_test! do |response|
           expect(action.reload.state).to eq("in_progress")
+        end
+      end
+
+      response "200", "Transition records the optional note on the event row" do
+        let(:Authorization) { "Bearer #{jwt_for(assignee)}" }
+        let(:body)          { { event: "start", note: "Beginning today" } }
+
+        run_test! do |response|
+          evt = action.reload.events.order(:created_at).last
+          expect(evt.event_name).to eq("started")
+          expect(evt.note).to eq("Beginning today")
+          expect(evt.actor_id).to eq(assignee.id)
         end
       end
 

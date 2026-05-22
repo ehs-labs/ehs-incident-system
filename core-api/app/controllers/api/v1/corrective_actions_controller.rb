@@ -28,7 +28,10 @@ module Api
 
       # POST /api/v1/incidents/:incident_id/corrective_actions
       def create
-        @action = CorrectiveAction.new(corrective_action_params.merge(
+        attrs = corrective_action_params
+        note  = attrs.delete(:note)
+
+        @action = CorrectiveAction.new(attrs.merge(
           incident_id:   @incident.id,
           created_by_id: current_user.id
         ))
@@ -36,6 +39,11 @@ module Api
 
         ApplicationRecord.transaction do
           @action.save!
+          @action.events.create!(
+            event_name: "assigned",
+            actor_id:   current_user.id,
+            note:       note
+          )
           @action.publish_assigned_event!
         end
 
@@ -50,7 +58,7 @@ module Api
       end
 
       # POST /api/v1/corrective_actions/:id/transitions
-      # Body: { event: "start" | "complete" | "verify" | "cancel" }
+      # Body: { event: "start" | "complete" | "verify" | "cancel", note?: string }
       def transition
         event = params[:event].to_s
         unless CorrectiveAction.aasm.events.map { |e| e.name.to_s }.include?(event)
@@ -60,6 +68,7 @@ module Api
         authorize @action, "#{event}?"
 
         ApplicationRecord.transaction do
+          @action.pending_note = params[:note].presence
           @action.send("#{event}!")
         end
 
@@ -78,7 +87,7 @@ module Api
 
       def corrective_action_params
         params.require(:corrective_action).permit(
-          :title, :description, :due_date, :assignee_id, evidence: []
+          :title, :description, :due_date, :assignee_id, :note, evidence: []
         )
       end
     end
