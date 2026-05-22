@@ -39,7 +39,9 @@ WORKDIR /app
 # Glob trailing * makes Gemfile.lock optional (it's gitignored until first build).
 COPY Gemfile* ./
 
-RUN bundle install && \
+# Match BUNDLED WITH in Gemfile.lock so bundle install skips the self-bootstrap.
+RUN gem install bundler --no-document --version 4.0.12 && \
+    bundle install && \
     rm -rf "${BUNDLE_PATH}/ruby/*/cache" && \
     find "${BUNDLE_PATH}" -name "*.o" -delete
 
