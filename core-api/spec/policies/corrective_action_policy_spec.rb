@@ -56,6 +56,13 @@ RSpec.describe CorrectiveActionPolicy, type: :policy do
   end
 
   describe "transition guards" do
+    around(:each) do |ex|
+      Current.user = worker
+      ex.run
+    ensure
+      Current.user = nil
+    end
+
     it "only the assignee can :start and :complete" do
       expect(described_class.new(worker,       action).start?).to be true
       action.start!

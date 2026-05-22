@@ -35,7 +35,7 @@ module EventBus
         occurred_at:        (Time.current.to_f * 1000).to_i,
         org_id:             org_id.to_s,
         actor_id:           actor_id.to_s,
-        subject:            subject.compact.transform_keys(&:to_s).transform_values { |v| coerce(v) },
+        subject:            subject.transform_keys(&:to_s).transform_values { |v| coerce(v) },
         recipient_user_ids: recipient_user_ids.map(&:to_s)
       }
     )
@@ -46,6 +46,7 @@ module EventBus
   # gets stringified.
   def coerce(v)
     case v
+    when nil                  then nil
     when Integer, Float       then v
     when Time, DateTime       then (v.to_f * 1000).to_i
     when Date                 then (v.to_time.to_i / 86_400).to_i

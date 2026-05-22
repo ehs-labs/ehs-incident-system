@@ -18,7 +18,6 @@ RSpec.describe CorrectiveAction, type: :model do
     Current.user = investigator
     incident.triage!
     incident.actions_assigned!
-    Current.user = nil
     incident.reload
   end
 
@@ -49,6 +48,13 @@ RSpec.describe CorrectiveAction, type: :model do
   describe "AASM transitions" do
     let(:incident) { create(:incident, organization: org, site: site, reporter: reporter) }
     let(:action)   { create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator) }
+
+    around(:each) do |ex|
+      Current.user = investigator
+      ex.run
+    ensure
+      Current.user = nil
+    end
 
     it "starts in :open" do
       expect(action.state).to eq("open")
@@ -83,6 +89,13 @@ RSpec.describe CorrectiveAction, type: :model do
   end
 
   describe "incident auto-close on verify" do
+    around(:each) do |ex|
+      Current.user = investigator
+      ex.run
+    ensure
+      Current.user = nil
+    end
+
     it "transitions the parent incident to :closed once all corrective actions are verified" do
       incident = pending_closure_incident
       a1 = create(:corrective_action, incident: incident, assignee: assignee, created_by: investigator)
@@ -136,7 +149,7 @@ RSpec.describe CorrectiveAction, type: :model do
       expect(event.partition_key).to eq(org.id.to_s)
 
       subject = event.payload["subject"]
-      expect(subject.keys).to match_array(%w[action_id incident_id assignee_id title due_date])
+      expect(subject.keys).to match_array(%w[action_id incident_id assignee_id title due_date note])
       expect(subject["action_id"]).to eq(action.id.to_s)
       expect(subject["incident_id"]).to eq(incident.id.to_s)
       expect(subject["assignee_id"]).to eq(assignee.id.to_s)
@@ -144,8 +157,8 @@ RSpec.describe CorrectiveAction, type: :model do
 
     it "writes a CorrectiveActionCompleted outbox event when transitioning to :done" do
       incident.update_column(:assignee_id, investigator.id)
-      action.start!
       Current.user = assignee
+      action.start!
 
       expect { action.complete! }
         .to change { OutboxEvent.where(event_type: "CorrectiveActionCompleted").count }.by(1)
@@ -157,7 +170,7 @@ RSpec.describe CorrectiveAction, type: :model do
       expect(event.payload["recipient_user_ids"]).to match_array([ investigator.id.to_s ])
 
       subject = event.payload["subject"]
-      expect(subject.keys).to match_array(%w[action_id incident_id assignee_id title completed_at])
+      expect(subject.keys).to match_array(%w[action_id incident_id assignee_id title completed_at note])
       expect(subject["action_id"]).to eq(action.id.to_s)
       expect(subject["incident_id"]).to eq(incident.id.to_s)
       expect(subject["assignee_id"]).to eq(assignee.id.to_s)
@@ -175,6 +188,55 @@ RSpec.describe CorrectiveAction, type: :model do
       expect(event.payload["actor_id"]).to eq("system")
       expect(event.payload["subject"]["days_overdue"]).to be >= 3
       expect(event.payload["recipient_user_ids"]).to include(assignee.id.to_s, reporter.id.to_s)
+    end
+
+    it "logs a CorrectiveActionEvent row on every transition with the right actor and note" do
+      incident.update_column(:assignee_id, investigator.id)
+
+      Current.user = assignee
+      action.pending_note = "Begin today after parts arrive"
+      action.start!
+
+      action.pending_note = "Replaced wheel, bearing looks worn"
+      action.complete!
+
+      Current.user = investigator
+      action.pending_note = "Confirmed; signing off"
+      action.verify!
+
+      events = action.events.order(:created_at)
+      expect(events.map(&:event_name)).to eq(%w[started completed verified])
+      expect(events.map(&:actor_id)).to eq([ assignee.id, assignee.id, investigator.id ])
+      expect(events.map(&:note)).to eq([
+        "Begin today after parts arrive",
+        "Replaced wheel, bearing looks worn",
+        "Confirmed; signing off"
+      ])
+    ensure
+      Current.user = nil
+    end
+
+    it "writes a nil-note event row when no pending_note is set" do
+      Current.user = assignee
+      action.start!
+      action.complete!
+
+      expect(action.events.last.note).to be_nil
+    ensure
+      Current.user = nil
+    end
+
+    it "includes the note in the CorrectiveActionCompleted outbox payload" do
+      incident.update_column(:assignee_id, investigator.id)
+      Current.user = assignee
+      action.start!
+      action.pending_note = "Replaced wheel"
+      action.complete!
+
+      event = OutboxEvent.where(event_type: "CorrectiveActionCompleted").order(:id).last
+      expect(event.payload["subject"]["note"]).to eq("Replaced wheel")
+    ensure
+      Current.user = nil
     end
   end
 end
