@@ -63,6 +63,28 @@ RSpec.describe CorrectiveActionsConsumer do
   end
 
   # ---------------------------------------------------------------------------
+  # CorrectiveActionCompleted — investigator (reporter in this fixture) gets
+  # email + in_app; the worker who completed it is the actor and is filtered
+  # out by IncidentNotifier.
+  # ---------------------------------------------------------------------------
+  it 'CorrectiveActionCompleted: notifies the investigator who owns the action' do
+    produce_ca_event(
+      event_id: 'evt-ca-complete-1',
+      event_type: 'CorrectiveActionCompleted',
+      recipient_ids: [reporter_id, assignee_id],
+      actor_id: assignee_id,
+      subject: { 'incident_id' => 'inc-1', 'assignee_id' => assignee_id, 'title' => 'Fix valve' }
+    )
+
+    expect { consumer.consume }
+      .to change(Notifier::Models::DeliveryLog, :count).by(2)
+
+    rows = Notifier::Models::DeliveryLog.where(event_id: 'evt-ca-complete-1').all
+    expect(rows.map(&:user_id).uniq).to eq([reporter_id])
+    expect(rows.map(&:channel).sort).to eq(%w[email in_app])
+  end
+
+  # ---------------------------------------------------------------------------
   # 7. CorrectiveActionOverdue — reporter + assignee both notified
   # ---------------------------------------------------------------------------
   it 'CorrectiveActionOverdue: notifies reporter and assignee' do

@@ -39,7 +39,13 @@ class CorrectiveAction < ApplicationRecord
 
     event :complete do
       transitions from: :in_progress, to: :done
-      after { update_column(:completed_at, Time.current) }
+      after do
+        update_column(:completed_at, Time.current)
+        publish_event!(
+          "CorrectiveActionCompleted",
+          recipient_user_ids: completion_recipient_ids
+        )
+      end
     end
 
     event :verify do
@@ -111,9 +117,23 @@ class CorrectiveAction < ApplicationRecord
         due_date:     due_date.to_date,
         days_overdue: ((Time.current.to_date - due_date.to_date).to_i)
       }
+    when "CorrectiveActionCompleted"
+      {
+        action_id:    id.to_s,
+        incident_id:  incident_id.to_s,
+        assignee_id:  assignee_id.to_s,
+        title:        title,
+        completed_at: completed_at || Time.current
+      }
     else
       { action_id: id.to_s }
     end
+  end
+
+  # Investigators who should learn the action is ready to verify: the user who
+  # created the action plus the investigator owning the parent incident.
+  def completion_recipient_ids
+    [ created_by_id, incident.assignee_id ].compact.uniq
   end
 
   # When every sibling corrective action on the incident is verified and the

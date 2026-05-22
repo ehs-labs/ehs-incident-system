@@ -83,6 +83,18 @@ Handlers::DomainEvent.register('CorrectiveActionAssigned') do |event|
   )
 end
 
+Handlers::DomainEvent.register('CorrectiveActionCompleted') do |event|
+  incident_id = event.dig('subject', 'incident_id')
+  Handlers::IncidentNotifier.notify(
+    event: event,
+    title: 'Corrective action ready to verify',
+    body: "#{Handlers::DomainEvent.actor_name(event)} marked corrective action \"#{event.dig(
+      'subject', 'title'
+    )}\" on incident ##{incident_id} as done. Review it and verify.",
+    link_path: "/incidents/#{incident_id}"
+  )
+end
+
 Handlers::DomainEvent.register('CorrectiveActionOverdue') do |event|
   incident_id = event.dig('subject', 'incident_id')
   days = event.dig('subject', 'days_overdue')

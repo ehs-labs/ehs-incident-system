@@ -1,0 +1,78 @@
+{
+  "type": "record",
+  "name": "CorrectiveActionCompleted",
+  "doc": "Emitted when an assignee transitions a corrective action to :done. Notifies the investigator(s) who own the action so they can verify it.",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string"
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "default": "CorrectiveActionCompleted"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1
+    },
+    {
+      "name": "occurred_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "org_id",
+      "type": "string"
+    },
+    {
+      "name": "actor_id",
+      "type": "string"
+    },
+    {
+      "name": "subject",
+      "type": {
+        "type": "record",
+        "name": "CorrectiveActionCompletedSubject",
+        "fields": [
+          {
+            "name": "action_id",
+            "type": "string"
+          },
+          {
+            "name": "incident_id",
+            "type": "string"
+          },
+          {
+            "name": "assignee_id",
+            "type": "string"
+          },
+          {
+            "name": "title",
+            "type": "string"
+          },
+          {
+            "name": "completed_at",
+            "type": {
+              "type": "long",
+              "logicalType": "timestamp-millis"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "recipient_user_ids",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": [
+
+      ]
+    }
+  ]
+}

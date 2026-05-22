@@ -142,6 +142,29 @@ RSpec.describe CorrectiveAction, type: :model do
       expect(subject["assignee_id"]).to eq(assignee.id.to_s)
     end
 
+    it "writes a CorrectiveActionCompleted outbox event when transitioning to :done" do
+      incident.update_column(:assignee_id, investigator.id)
+      action.start!
+      Current.user = assignee
+
+      expect { action.complete! }
+        .to change { OutboxEvent.where(event_type: "CorrectiveActionCompleted").count }.by(1)
+
+      event = OutboxEvent.where(event_type: "CorrectiveActionCompleted").order(:id).last
+      expect(event.topic).to eq("corrective_actions.v1")
+      expect(event.partition_key).to eq(org.id.to_s)
+      expect(event.payload["actor_id"]).to eq(assignee.id.to_s)
+      expect(event.payload["recipient_user_ids"]).to match_array([ investigator.id.to_s ])
+
+      subject = event.payload["subject"]
+      expect(subject.keys).to match_array(%w[action_id incident_id assignee_id title completed_at])
+      expect(subject["action_id"]).to eq(action.id.to_s)
+      expect(subject["incident_id"]).to eq(incident.id.to_s)
+      expect(subject["assignee_id"]).to eq(assignee.id.to_s)
+    ensure
+      Current.user = nil
+    end
+
     it "writes a CorrectiveActionOverdue outbox event with days_overdue" do
       action.update_column(:due_date, 3.days.ago)
 
