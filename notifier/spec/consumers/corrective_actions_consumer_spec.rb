@@ -84,6 +84,69 @@ RSpec.describe CorrectiveActionsConsumer do
     expect(rows.map(&:channel).sort).to eq(%w[email in_app])
   end
 
+  it 'CorrectiveActionCompleted: includes the note in the delivery body when present' do
+    produce_ca_event(
+      event_id: 'evt-ca-complete-note-1',
+      event_type: 'CorrectiveActionCompleted',
+      recipient_ids: [reporter_id],
+      actor_id: assignee_id,
+      subject: { 'incident_id' => 'inc-1', 'assignee_id' => assignee_id, 'title' => 'Fix valve', 'note' => 'Replaced wheel; bearing also worn' }
+    )
+
+    consumer.consume
+
+    rows = Notifier::Models::DeliveryLog.where(event_id: 'evt-ca-complete-note-1').all
+    expect(rows.first.body).to include('Replaced wheel; bearing also worn')
+  end
+
+  it 'CorrectiveActionCompleted: omits the note suffix when note is nil' do
+    produce_ca_event(
+      event_id: 'evt-ca-complete-nonote-1',
+      event_type: 'CorrectiveActionCompleted',
+      recipient_ids: [reporter_id],
+      actor_id: assignee_id,
+      subject: { 'incident_id' => 'inc-1', 'assignee_id' => assignee_id, 'title' => 'Fix valve', 'note' => nil }
+    )
+
+    consumer.consume
+
+    rows = Notifier::Models::DeliveryLog.where(event_id: 'evt-ca-complete-nonote-1').all
+    expect(rows.first.body).not_to include('Note:')
+  end
+
+  it 'CorrectiveActionVerified: notifies the assignee with the verification note' do
+    produce_ca_event(
+      event_id: 'evt-ca-verify-1',
+      event_type: 'CorrectiveActionVerified',
+      recipient_ids: [assignee_id],
+      actor_id: third_party_actor,
+      subject: { 'incident_id' => 'inc-1', 'assignee_id' => assignee_id, 'title' => 'Fix valve', 'note' => 'Looks good' }
+    )
+
+    expect { consumer.consume }
+      .to change(Notifier::Models::DeliveryLog, :count).by(2)
+
+    rows = Notifier::Models::DeliveryLog.where(event_id: 'evt-ca-verify-1').all
+    expect(rows.map(&:user_id).uniq).to eq([assignee_id])
+    expect(rows.first.body).to include('Looks good')
+  end
+
+  it 'CorrectiveActionCancelled: notifies the assignee with the cancellation reason' do
+    produce_ca_event(
+      event_id: 'evt-ca-cancel-1',
+      event_type: 'CorrectiveActionCancelled',
+      recipient_ids: [assignee_id],
+      actor_id: third_party_actor,
+      subject: { 'incident_id' => 'inc-1', 'assignee_id' => assignee_id, 'title' => 'Fix valve', 'note' => 'Superseded by action #99' }
+    )
+
+    expect { consumer.consume }
+      .to change(Notifier::Models::DeliveryLog, :count).by(2)
+
+    rows = Notifier::Models::DeliveryLog.where(event_id: 'evt-ca-cancel-1').all
+    expect(rows.first.body).to include('Superseded by action #99')
+  end
+
   # ---------------------------------------------------------------------------
   # 7. CorrectiveActionOverdue — reporter + assignee both notified
   # ---------------------------------------------------------------------------

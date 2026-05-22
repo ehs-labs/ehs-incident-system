@@ -30,6 +30,13 @@ module Handlers
 
       Notifier::Models::UserMirror[user_id: actor_id.to_s]&.name || 'Someone'
     end
+
+    # Returns " Note: <text>" when the event subject has a non-blank note,
+    # else the empty string. Lets handlers do `body: "...#{note_suffix(event)}"`.
+    def note_suffix(event)
+      n = event.dig('subject', 'note')
+      n.is_a?(String) && !n.strip.empty? ? " Note: #{n.strip}" : ''
+    end
   end
 end
 
@@ -78,7 +85,7 @@ Handlers::DomainEvent.register('CorrectiveActionAssigned') do |event|
     title: 'Corrective action assigned to you',
     body: "#{Handlers::DomainEvent.actor_name(event)} assigned you a corrective action on incident ##{incident_id}: \"#{event.dig(
       'subject', 'title'
-    )}\" (due #{event.dig('subject', 'due_date')}).",
+    )}\" (due #{event.dig('subject', 'due_date')}).#{Handlers::DomainEvent.note_suffix(event)}",
     link_path: "/incidents/#{incident_id}"
   )
 end
@@ -90,7 +97,31 @@ Handlers::DomainEvent.register('CorrectiveActionCompleted') do |event|
     title: 'Corrective action ready to verify',
     body: "#{Handlers::DomainEvent.actor_name(event)} marked corrective action \"#{event.dig(
       'subject', 'title'
-    )}\" on incident ##{incident_id} as done. Review it and verify.",
+    )}\" on incident ##{incident_id} as done. Review it and verify.#{Handlers::DomainEvent.note_suffix(event)}",
+    link_path: "/incidents/#{incident_id}"
+  )
+end
+
+Handlers::DomainEvent.register('CorrectiveActionVerified') do |event|
+  incident_id = event.dig('subject', 'incident_id')
+  Handlers::IncidentNotifier.notify(
+    event: event,
+    title: 'Corrective action verified',
+    body: "#{Handlers::DomainEvent.actor_name(event)} verified corrective action \"#{event.dig(
+      'subject', 'title'
+    )}\" on incident ##{incident_id}.#{Handlers::DomainEvent.note_suffix(event)}",
+    link_path: "/incidents/#{incident_id}"
+  )
+end
+
+Handlers::DomainEvent.register('CorrectiveActionCancelled') do |event|
+  incident_id = event.dig('subject', 'incident_id')
+  Handlers::IncidentNotifier.notify(
+    event: event,
+    title: 'Corrective action cancelled',
+    body: "#{Handlers::DomainEvent.actor_name(event)} cancelled corrective action \"#{event.dig(
+      'subject', 'title'
+    )}\" on incident ##{incident_id}.#{Handlers::DomainEvent.note_suffix(event)}",
     link_path: "/incidents/#{incident_id}"
   )
 end
