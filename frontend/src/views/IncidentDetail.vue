@@ -40,7 +40,8 @@ import {
   listIncidentActions,
   createIncidentAction
 } from "@/api/incidents";
-import { transitionAction, type ActionTransition } from "@/api/actions";
+import { transitionAction, listActionEvents, type ActionTransition } from "@/api/actions";
+import type { CorrectiveActionEventAttributes } from "@/types/api";
 import { listAssignableUsers } from "@/api/users";
 import { useAuthStore } from "@/stores/auth";
 import { findIncluded } from "@/utils/jsonapi";
@@ -400,6 +401,76 @@ function allowedForAction(
   if (!auth.user) return [];
   const isMine = String(assignee_id) === auth.user.id;
   return allowedActionTransitions(action_state, auth.user.role, isMine);
+}
+
+// ---- corrective-action activity feed ---------------------------------------
+
+interface ActionEventRow {
+  id: string;
+  event_name: CorrectiveActionEventAttributes["event_name"];
+  note: string | null;
+  actor_id: number;
+  created_at: string;
+}
+
+const actionEvents = ref<Record<string, ActionEventRow[]>>({});
+const actionEventsLoading = ref<Record<string, boolean>>({});
+const actionShowActivity = ref<Record<string, boolean>>({});
+
+async function toggleActivity(actionId: string) {
+  const isOpen = actionShowActivity.value[actionId] === true;
+  if (isOpen) {
+    actionShowActivity.value = { ...actionShowActivity.value, [actionId]: false };
+    return;
+  }
+  actionShowActivity.value = { ...actionShowActivity.value, [actionId]: true };
+  await loadActionEvents(actionId);
+}
+
+async function loadActionEvents(actionId: string) {
+  actionEventsLoading.value = { ...actionEventsLoading.value, [actionId]: true };
+  try {
+    const res = await listActionEvents(actionId);
+    actionEvents.value = {
+      ...actionEvents.value,
+      [actionId]: res.data.map((r) => ({
+        id: r.id,
+        event_name: r.attributes.event_name,
+        note: r.attributes.note,
+        actor_id: r.attributes.actor_id,
+        created_at: r.attributes.created_at
+      }))
+    };
+  } catch (e) {
+    message.error(`Could not load activity: ${(e as ApiError).message}`);
+  } finally {
+    actionEventsLoading.value = { ...actionEventsLoading.value, [actionId]: false };
+  }
+}
+
+const ACTION_EVENT_LABELS: Record<CorrectiveActionEventAttributes["event_name"], string> = {
+  assigned:  "assigned",
+  started:   "started",
+  completed: "marked as done",
+  verified:  "verified",
+  cancelled: "cancelled"
+};
+
+function eventTimelineType(name: CorrectiveActionEventAttributes["event_name"]) {
+  switch (name) {
+    case "assigned":  return "info";
+    case "started":   return "default";
+    case "completed": return "success";
+    case "verified":  return "success";
+    case "cancelled": return "error";
+    default:          return "default";
+  }
+}
+
+function eventTimelineTitle(evt: ActionEventRow) {
+  const actor = orgUsers.value.find((u) => Number(u.id) === evt.actor_id);
+  const who = actor?.name ?? `User #${evt.actor_id}`;
+  return `${who} ${ACTION_EVENT_LABELS[evt.event_name]}`;
 }
 
 // ---- versions / audit trail rendering --------------------------------------
@@ -869,7 +940,37 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
                       >
                         {{ ev }}
                       </n-button>
+                      <n-button
+                        size="small"
+                        text
+                        @click="toggleActivity(a.id)"
+                      >
+                        {{ actionShowActivity[a.id] ? "Hide activity" : "Show activity" }}
+                      </n-button>
                     </n-space>
+
+                    <div
+                      v-if="actionShowActivity[a.id]"
+                      style="margin-top: 12px"
+                    >
+                      <n-spin :show="actionEventsLoading[a.id] === true">
+                        <n-empty
+                          v-if="(actionEvents[a.id]?.length ?? 0) === 0 && actionEventsLoading[a.id] !== true"
+                          description="No activity yet"
+                          size="small"
+                        />
+                        <n-timeline v-else>
+                          <n-timeline-item
+                            v-for="evt in actionEvents[a.id] ?? []"
+                            :key="evt.id"
+                            :type="eventTimelineType(evt.event_name)"
+                            :title="eventTimelineTitle(evt)"
+                            :content="evt.note ?? ''"
+                            :time="fmtDate(evt.created_at)"
+                          />
+                        </n-timeline>
+                      </n-spin>
+                    </div>
                   </n-thing>
                 </n-list-item>
                 <n-list-item v-if="!actions.length">
