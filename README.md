@@ -30,20 +30,32 @@ Notifications fan out across **email**, **Telegram**, and **in-app** (WebSocket)
 ## Architecture
 
 ```mermaid
-C4Container
-  Person(worker, "Worker", "Reports incidents")
-  Container_Boundary(c1, "EHS Incident System") {
-    Container(spa, "Web SPA", "Vue 3 + Naive UI", "Login, submit, triage, verify")
-    Container(api, "core-api", "Rails 8.1", "Domain, Pundit, JWT")
-    Container(notifier, "notifier", "Karafka 2.5", "Email + in-app fanout")
-    ContainerDb(pg, "Postgres", "Two DBs: ehs_app, ehs_notifier")
-    Container(kafka, "Kafka", "Avro + Karapace", "Topics: incidents/CAs/users/system")
-  }
-  Rel(worker, spa, "HTTPS")
-  Rel(spa, api, "JSON:API + WebSocket")
-  Rel(api, kafka, "Outbox to Avro publish")
-  Rel(kafka, notifier, "Consume")
-  Rel(notifier, pg, "delivery_log + users_mirror")
+%%{init: {'flowchart': {'htmlLabels': true}, 'themeVariables': {'fontSize': '18px'}}}%%
+flowchart TB
+    worker["<b>Worker</b><br/><i>[Person]</i><br/>Reports incidents"]
+
+    subgraph ehs["EHS Incident System"]
+        direction TB
+        spa["<b>Web SPA</b><br/><i>[Container: Vue 3 + Naive UI]</i><br/>Login, submit, triage, verify"]
+        api["<b>core-api</b><br/><i>[Container: Rails 8.1]</i><br/>Domain, Pundit, JWT"]
+        notifier["<b>notifier</b><br/><i>[Container: Karafka 2.5]</i><br/>Email + in-app fanout"]
+        kafka[("<b>Kafka</b><br/><i>[Avro + Karapace]</i><br/>Topics: incidents/CAs/users/system")]
+        pg[("<b>Postgres</b><br/><i>[Database]</i><br/>Two DBs: ehs_app, ehs_notifier")]
+    end
+
+    worker -->|"HTTPS"| spa
+    spa -->|"JSON:API + WebSocket"| api
+    api -->|"Outbox to Avro publish"| kafka
+    kafka -->|"Consume"| notifier
+    notifier -->|"delivery_log + users_mirror"| pg
+
+    classDef person    fill:#08427b,stroke:#052e56,color:#ffffff,stroke-width:1px
+    classDef container fill:#1168bd,stroke:#0b4884,color:#ffffff,stroke-width:1px
+
+    class worker person
+    class spa,api,notifier,kafka,pg container
+
+    style ehs fill:none,stroke:#0b4884,stroke-dasharray:5 5,color:#0b4884
 ```
 
 See [`docs/architecture/02-c4-container.md`](docs/architecture/02-c4-container.md) for the full C4 Container view.
