@@ -3,8 +3,8 @@
 ## Prerequisites
 
 - Docker Desktop ≥ 4.30 (includes Compose v2)
-- Ruby 3.3 (managed via `rbenv` / `asdf` / `mise`) — only if you want to run apps outside Docker
-- Node ≥ 20 + pnpm ≥ 9 — same caveat
+- Ruby 4.0.5 (managed via `rbenv` / `asdf` / `mise`) — only if you want to run apps outside Docker
+- Node ≥ 24 + pnpm ≥ 9 — same caveat
 - `jq` and `curl` for the bootstrap script
 - ~6 GB free RAM for the full compose stack
 

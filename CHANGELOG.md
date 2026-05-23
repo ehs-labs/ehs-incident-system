@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test environment uses ActiveJob's `:test` queue adapter so specs run from the host without Redis.
 
 - Initial project scaffold: monorepo structure, git/CI foundation, docker-compose, K8s Kustomize base
-- `core-api` (Rails 7.2 API-only) skeleton — Devise+JWT auth, AASM state machines, PaperTrail audit, Sidekiq, rdkafka producer
+- `core-api` (Rails 8.1 API-only) skeleton — Devise+JWT auth, AASM state machines, PaperTrail audit, Sidekiq, rdkafka producer
 - `notifier` (Sinatra) skeleton — Karafka consumers, Falcon WebSocket server, channel adapters (email, Telegram, in-app)
 - `frontend` (Vue 3 + TypeScript + Vite) skeleton — Pinia, Vue Router, Naive UI, Axios
 - `shared/envelope` — AES-256-GCM field-level encryption gem
