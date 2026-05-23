@@ -3,10 +3,10 @@
 > A portfolio-grade Environment, Health & Safety (EHS) incident management platform built with Ruby on Rails, Vue 3 + TypeScript, and an event-driven Kafka pipeline.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Ruby](https://img.shields.io/badge/Ruby-3.3-red)
-![Rails](https://img.shields.io/badge/Rails-7.2-red)
+![Ruby](https://img.shields.io/badge/Ruby-4.0-red)
+![Rails](https://img.shields.io/badge/Rails-8.1-red)
 ![Vue](https://img.shields.io/badge/Vue-3-green)
-![Node](https://img.shields.io/badge/Node-20-green)
+![Node](https://img.shields.io/badge/Node-24-green)
 
 [![CI](https://github.com/ehs-labs/ehs-incident-system/actions/workflows/ci.yml/badge.svg)](https://github.com/ehs-labs/ehs-incident-system/actions/workflows/ci.yml)
 
@@ -34,7 +34,7 @@ C4Container
   Person(worker, "Worker", "Reports incidents")
   Container_Boundary(c1, "EHS Incident System") {
     Container(spa, "Web SPA", "Vue 3 + Naive UI", "Login, submit, triage, verify")
-    Container(api, "core-api", "Rails 7.2", "Domain, Pundit, JWT")
+    Container(api, "core-api", "Rails 8.1", "Domain, Pundit, JWT")
     Container(notifier, "notifier", "Karafka 2.5", "Email + in-app fanout")
     ContainerDb(pg, "Postgres", "Two DBs: ehs_app, ehs_notifier")
     Container(kafka, "Kafka", "Avro + Karapace", "Topics: incidents/CAs/users/system")
@@ -90,7 +90,7 @@ Or sign up fresh at `/signup` — signup is enabled by default (toggle with `SIG
 
 | Layer | Stack |
 |---|---|
-| **Backend** | Ruby 3.3 · Rails 7.2 (API-only) · Devise + JWT · Pundit · AASM · PaperTrail · Sidekiq · rdkafka-ruby · pg_search |
+| **Backend** | Ruby 4.0 · Rails 8.1 (API-only) · Devise + JWT · Pundit · AASM · PaperTrail · Sidekiq · rdkafka-ruby · pg_search |
 | **Notification service** | Sinatra · Karafka · Falcon (async) · Sequel · telegram-bot-ruby |
 | **Frontend** | Vue 3 · TypeScript · Vite · Pinia · Naive UI · Vue Router · Axios · openapi-typescript |
 | **Persistence** | PostgreSQL 16 · Redis 7 · MinIO (S3) |
@@ -109,7 +109,7 @@ See each stack section's "Why?" rationale in [`docs/architecture/02-c4-container
 
 **Field-level AES-256-GCM encryption on `users.v1`** — PII (email, name, telegram_handle) is encrypted with a versioned keyring before being published to Kafka so that a broker compromise does not leak personal data in plaintext. The keyring supports multiple active key versions, allowing rotation without a full re-publish of historical events. The rotation drill is rehearsed end-to-end in `docs/flows/key-rotation.md`.
 
-**Rails 7.2 + jsonapi-serializer** — Rails 7.2 in API-only mode is mature, ships `ActiveRecord::Encryption` out of the box, has first-class `bin/rails` tooling, and pairs naturally with PostgreSQL. `jsonapi-serializer` (descended from Netflix's `fast_jsonapi`) is roughly 30x faster than ActiveModelSerializers and renders correct JSON:API envelopes without the heavyweight `jsonapi-resources` framework pulling in routes and controllers.
+**Rails 8.1 + jsonapi-serializer** — Rails 8.1 in API-only mode is mature, ships `ActiveRecord::Encryption` out of the box, has first-class `bin/rails` tooling, and pairs naturally with PostgreSQL. `jsonapi-serializer` (descended from Netflix's `fast_jsonapi`) is roughly 30x faster than ActiveModelSerializers and renders correct JSON:API envelopes without the heavyweight `jsonapi-resources` framework pulling in routes and controllers.
 
 **Vue 3 + Pinia + Naive UI** — Vue 3's composition API gives TypeScript-first ergonomics on par with React while keeping the learning curve gentle for contributors familiar with Rails view conventions. Pinia is the official Vue store with a tiny API surface and no Vuex boilerplate; stores map cleanly to bounded contexts. Naive UI is lean, fully typed, and renders fast — chosen over Element Plus or Vuetify for lower bundle weight and stronger design coherence at the cost of a smaller ecosystem.
 
@@ -127,7 +127,7 @@ See each stack section's "Why?" rationale in [`docs/architecture/02-c4-container
 
 ```
 ehs-incident-system/
-├── core-api/             # Rails 7.2 API-only monolith
+├── core-api/             # Rails 8.1 API-only monolith
 ├── notifier/             # Sinatra notification service
 ├── frontend/             # Vue 3 + TypeScript + Vite
 ├── shared/envelope/      # ehs-envelope gem (AES-256-GCM)
