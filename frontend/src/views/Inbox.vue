@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed, ref } from "vue";
 import {
   NList,
   NListItem,
@@ -7,7 +8,8 @@ import {
   NBadge,
   NTag,
   NCard,
-  NButton
+  NButton,
+  NSelect
 } from "naive-ui";
 import { useRouter } from "vue-router";
 import { useNotificationStore, type Notification } from "@/composables/useNotifications";
@@ -15,6 +17,26 @@ import { fmtRelative } from "@/utils/format";
 
 const router = useRouter();
 const notifications = useNotificationStore();
+
+// Sort order. The WS store's insertion order depends on the server's replay
+// frame and live-push interleaving — neither is a useful UI guarantee — so we
+// sort here by created_at. Default: newest first.
+type SortOrder = "newest" | "oldest";
+const sortOrder = ref<SortOrder>("newest");
+
+const SORT_OPTIONS: { label: string; value: SortOrder }[] = [
+  { label: "Newest first", value: "newest" },
+  { label: "Oldest first", value: "oldest" }
+];
+
+const sortedItems = computed<Notification[]>(() => {
+  const items = [...notifications.items];
+  items.sort((a, b) => {
+    const cmp = a.created_at.localeCompare(b.created_at);
+    return sortOrder.value === "newest" ? -cmp : cmp;
+  });
+  return items;
+});
 
 // Friendly labels and tag colors per event_type. Unknown event types fall back
 // to a neutral tag with the raw event_type as the label.
@@ -66,18 +88,29 @@ function markRead(n: Notification) {
       <h1 style="margin:0">
         Inbox
       </h1>
-      <n-tag
-        :type="notifications.connected ? 'success' : 'warning'"
-        size="small"
+      <n-space
+        :size="8"
+        align="center"
       >
-        WS {{ notifications.connected ? "connected" : "disconnected" }}
-      </n-tag>
+        <n-select
+          v-model:value="sortOrder"
+          :options="SORT_OPTIONS"
+          size="small"
+          style="width: 160px"
+        />
+        <n-tag
+          :type="notifications.connected ? 'success' : 'warning'"
+          size="small"
+        >
+          WS {{ notifications.connected ? "connected" : "disconnected" }}
+        </n-tag>
+      </n-space>
     </n-space>
 
     <n-card>
       <n-list>
         <n-list-item
-          v-for="n in notifications.items"
+          v-for="n in sortedItems"
           :key="n.id"
         >
           <div class="inbox-item">
@@ -120,7 +153,7 @@ function markRead(n: Notification) {
             </n-space>
           </div>
         </n-list-item>
-        <n-list-item v-if="!notifications.items.length">
+        <n-list-item v-if="!sortedItems.length">
           <n-empty description="No notifications yet" />
         </n-list-item>
       </n-list>
