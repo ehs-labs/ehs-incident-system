@@ -6,11 +6,13 @@ import {
   NSpace,
   NButton,
   NCard,
+  NModal,
+  NInput,
   useMessage,
   type DataTableColumns
 } from "naive-ui";
 import { useRouter } from "vue-router";
-import { listActions, transitionAction } from "@/api/actions";
+import { listActions, transitionAction, type ActionTransition } from "@/api/actions";
 import { useAuthStore } from "@/stores/auth";
 import { fmtDate, actionStateTagType } from "@/utils/format";
 import { allowedActionTransitions } from "@/utils/permissions";
@@ -42,9 +44,37 @@ async function load() {
   }
 }
 
-async function doTransition(id: string, event: "start" | "complete" | "verify") {
+// Every transition opens this dialog so the operator can attach an optional
+// note. Mirrors the same flow used on the incident detail page so the worker
+// can hand off context (e.g. "replaced wheel, bearing also worn") without
+// switching views.
+const TRANSITION_TITLES: Record<ActionTransition, string> = {
+  start:    "Start action",
+  complete: "Mark as done",
+  verify:   "Verify action",
+  cancel:   "Cancel action"
+};
+const transitionDialog = ref<{
+  show: boolean;
+  actionId: string | null;
+  event: ActionTransition | null;
+  note: string;
+}>({ show: false, actionId: null, event: null, note: "" });
+
+const transitionDialogTitle = computed(() =>
+  transitionDialog.value.event ? TRANSITION_TITLES[transitionDialog.value.event] : ""
+);
+
+function openTransitionDialog(actionId: string, event: ActionTransition) {
+  transitionDialog.value = { show: true, actionId, event, note: "" };
+}
+
+async function confirmTransition() {
+  const { actionId, event, note } = transitionDialog.value;
+  if (!actionId || !event) return;
   try {
-    await transitionAction(id, event);
+    await transitionAction(actionId, event, note || undefined);
+    transitionDialog.value.show = false;
     message.success(`Action ${event}`);
     await load();
   } catch (e) {
@@ -107,7 +137,7 @@ const columns = computed<DataTableColumns<Row>>(() => [
               NButton,
               {
                 size: "small",
-                onClick: () => doTransition(r.id, ev)
+                onClick: () => openTransitionDialog(r.id, ev)
               },
               () => ev
             )
@@ -135,5 +165,22 @@ const columns = computed<DataTableColumns<Row>>(() => [
         striped
       />
     </n-card>
+
+    <n-modal
+      v-model:show="transitionDialog.show"
+      preset="dialog"
+      :title="transitionDialogTitle"
+      positive-text="Confirm"
+      negative-text="Cancel"
+      @positive-click="confirmTransition"
+      @negative-click="transitionDialog.show = false"
+    >
+      <n-input
+        v-model:value="transitionDialog.note"
+        type="textarea"
+        :autosize="{ minRows: 2, maxRows: 6 }"
+        placeholder="Optional note"
+      />
+    </n-modal>
   </n-space>
 </template>
