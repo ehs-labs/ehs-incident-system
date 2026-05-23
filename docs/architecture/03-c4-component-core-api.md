@@ -5,7 +5,7 @@ flowchart LR
     spa[/Vue SPA<br/>REST + JWT/]
     admin[/Operator<br/>Sidekiq::Web/]
 
-    subgraph coreApi["core-api (Rails 7.2 API-only)"]
+    subgraph coreApi["core-api (Rails 8.1 API-only)"]
         direction TB
 
         subgraph auth["Auth"]

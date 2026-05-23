@@ -16,7 +16,7 @@ flowchart TB
 
             subgraph writePath["Write path"]
                 direction TB
-                coreApi["<b>core-api</b><br/><i>[Container: Rails 7.2 API-only, Ruby 3.3]</i><br/>Domain logic, auth, REST,<br/>outbox publisher"]
+                coreApi["<b>core-api</b><br/><i>[Container: Rails 8.1 API-only, Ruby 4.0]</i><br/>Domain logic, auth, REST,<br/>outbox publisher"]
                 sidekiq["<b>sidekiq</b><br/><i>[Container: Ruby, Sidekiq + sidekiq-cron]</i><br/>Outbox shipper, SLA scans,<br/>daily digests"]
                 minio[("<b>MinIO</b><br/><i>[S3-compatible]</i><br/>Attachment blob store")]
                 appDb[("<b>ehs_app</b><br/><i>[PostgreSQL 16]</i><br/>Domain, auth, outbox,<br/>audit (PaperTrail)")]

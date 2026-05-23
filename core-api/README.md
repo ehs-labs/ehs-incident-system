@@ -1,6 +1,6 @@
 # core-api
 
-The Rails 7.2 API-only monolith — domain logic, auth, REST endpoints, outbox publisher.
+The Rails 8.1 API-only monolith — domain logic, auth, REST endpoints, outbox publisher.
 
 ## Quick reference
 
