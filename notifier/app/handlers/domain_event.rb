@@ -86,7 +86,7 @@ Handlers::DomainEvent.register('CorrectiveActionAssigned') do |event|
     body: "#{Handlers::DomainEvent.actor_name(event)} assigned you a corrective action on incident ##{incident_id}: \"#{event.dig(
       'subject', 'title'
     )}\" (due #{event.dig('subject', 'due_date')}).#{Handlers::DomainEvent.note_suffix(event)}",
-    link_path: "/incidents/#{incident_id}"
+    link_path: "/incidents/#{incident_id}#actions"
   )
 end
 
@@ -98,7 +98,7 @@ Handlers::DomainEvent.register('CorrectiveActionCompleted') do |event|
     body: "#{Handlers::DomainEvent.actor_name(event)} marked corrective action \"#{event.dig(
       'subject', 'title'
     )}\" on incident ##{incident_id} as done. Review it and verify.#{Handlers::DomainEvent.note_suffix(event)}",
-    link_path: "/incidents/#{incident_id}"
+    link_path: "/incidents/#{incident_id}#actions"
   )
 end
 
@@ -110,7 +110,7 @@ Handlers::DomainEvent.register('CorrectiveActionVerified') do |event|
     body: "#{Handlers::DomainEvent.actor_name(event)} verified corrective action \"#{event.dig(
       'subject', 'title'
     )}\" on incident ##{incident_id}.#{Handlers::DomainEvent.note_suffix(event)}",
-    link_path: "/incidents/#{incident_id}"
+    link_path: "/incidents/#{incident_id}#actions"
   )
 end
 
@@ -122,7 +122,7 @@ Handlers::DomainEvent.register('CorrectiveActionCancelled') do |event|
     body: "#{Handlers::DomainEvent.actor_name(event)} cancelled corrective action \"#{event.dig(
       'subject', 'title'
     )}\" on incident ##{incident_id}.#{Handlers::DomainEvent.note_suffix(event)}",
-    link_path: "/incidents/#{incident_id}"
+    link_path: "/incidents/#{incident_id}#actions"
   )
 end
 
@@ -133,7 +133,7 @@ Handlers::DomainEvent.register('CorrectiveActionOverdue') do |event|
     event: event,
     title: 'Corrective action overdue',
     body: "A corrective action on incident ##{incident_id} is #{days} day#{days == 1 ? '' : 's'} past its due date.",
-    link_path: "/incidents/#{incident_id}"
+    link_path: "/incidents/#{incident_id}#actions"
   )
 end
 

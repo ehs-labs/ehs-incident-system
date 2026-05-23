@@ -89,7 +89,22 @@ const attachments = ref<{ id: string; attrs: AttachmentAttributes }[]>([]);
 const actions = ref<{ id: string; attrs: CorrectiveActionAttributes }[]>([]);
 const orgUsers = ref<{ id: string; name: string; email: string; role: string }[]>([]);
 
-const tab = ref<string>("details");
+const KNOWN_TABS = new Set([
+  "details",
+  "witnesses",
+  "comments",
+  "actions",
+  "versions"
+]);
+
+// Notification deep-links append e.g. `#actions` so a recipient lands on the
+// right tab. Anything outside the known set falls back to "details".
+function tabFromHash(hash: string): string {
+  const name = hash.replace(/^#/, "");
+  return KNOWN_TABS.has(name) ? name : "details";
+}
+
+const tab = ref<string>(tabFromHash(route.hash));
 
 const attrs = computed(() => incident.value?.data.attributes ?? null);
 const site = computed(() => {
@@ -204,6 +219,13 @@ watch(incidentId, async () => {
   await loadIncident();
   await loadAux();
 });
+
+// Update the selected tab if the URL hash changes — e.g. the user clicks
+// another notification link to the same incident with a different anchor.
+watch(
+  () => route.hash,
+  (h) => { tab.value = tabFromHash(h); }
+);
 onMounted(async () => {
   await loadIncident();
   await loadAux();
