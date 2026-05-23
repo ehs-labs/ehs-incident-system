@@ -31,10 +31,11 @@ db_url   = ENV.fetch('DATABASE_URL')
 db_name  = URI.parse(db_url).path.delete_prefix('/')
 admin_url = db_url.sub(%r{/[^/]+$}, '/postgres')
 begin
-  Sequel.connect(db_url) { |db| db.test_connection }
+  Sequel.connect(db_url, &:test_connection)
 rescue Sequel::DatabaseConnectionError
   Sequel.connect(admin_url) do |db|
     next if db.fetch('SELECT 1 FROM pg_database WHERE datname = ?', db_name).first
+
     db.run("CREATE DATABASE #{db_name}")
   end
 end
