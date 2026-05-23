@@ -37,8 +37,18 @@ class CreateIncidents < ActiveRecord::Migration[7.2]
 
     # GIN index on tsvector. New empty table -> zero-downtime risk;
     # strong_migrations can't introspect raw execute so wrap explicitly.
-    safety_assured do
-      execute "CREATE INDEX index_incidents_on_tsv ON incidents USING GIN(tsv);"
+    # Wrapped in `reversible` so `db:rollback` can drop the index without
+    # tripping Rails' "execute is not automatically reversible" guard — the
+    # "Migration safety" CI workflow runs up + down to baseline.
+    reversible do |dir|
+      dir.up do
+        safety_assured do
+          execute "CREATE INDEX index_incidents_on_tsv ON incidents USING GIN(tsv);"
+        end
+      end
+      dir.down do
+        execute "DROP INDEX IF EXISTS index_incidents_on_tsv;"
+      end
     end
   end
 end
