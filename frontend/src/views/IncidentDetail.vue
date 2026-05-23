@@ -531,6 +531,31 @@ const VERSION_FIELD_LABEL: Record<string, string> = {
 };
 const VERSION_HIDDEN_FIELDS = new Set(["created_at", "updated_at", "id"]);
 
+function userNameById(id: unknown): string | null {
+  const num = Number(id);
+  if (!Number.isFinite(num)) return null;
+  const u = orgUsers.value.find((x) => Number(x.id) === num);
+  return u?.name ?? null;
+}
+
+function siteNameById(id: unknown): string | null {
+  const num = Number(id);
+  if (!Number.isFinite(num)) return null;
+  const s = auth.sites.find((x) => Number(x.id) === num);
+  return s?.name ?? null;
+}
+
+function organizationNameById(id: unknown): string | null {
+  const num = Number(id);
+  if (!Number.isFinite(num)) return null;
+  // The user only sees incidents in their own org, so the only matching id
+  // is auth.organization.id. Anything else falls back to the raw id.
+  if (auth.organization && Number(auth.organization.id) === num) {
+    return auth.organization.name;
+  }
+  return null;
+}
+
 function formatVersionValue(field: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (field === "severity" && typeof value === "number") {
@@ -538,6 +563,15 @@ function formatVersionValue(field: string, value: unknown): string {
   }
   if (field.endsWith("_at") && typeof value === "string") {
     return fmtDate(value);
+  }
+  if (field === "reporter_id" || field === "assignee_id") {
+    return userNameById(value) ?? `User #${value}`;
+  }
+  if (field === "site_id") {
+    return siteNameById(value) ?? `Site #${value}`;
+  }
+  if (field === "organization_id") {
+    return organizationNameById(value) ?? `Org #${value}`;
   }
   if (typeof value === "string") return value;
   return JSON.stringify(value);
