@@ -62,9 +62,11 @@ Rails.application.routes.draw do
       resources :corrective_actions, only: %i[index show update] do
         member { post "transitions", to: "corrective_actions#transition" }
         resources :versions, only: :index, controller: "corrective_action_versions"
+        resources :events,   only: :index, controller: "corrective_action_events"
       end
 
       resources :notifications, only: %i[index update]
+      resources :assignable_users, only: :index
       get "dashboard", to: "dashboard#show"
 
       # ----- Admin -----------------------------------------------------

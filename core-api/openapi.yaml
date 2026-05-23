@@ -415,6 +415,26 @@ paths:
       responses:
         '204':
           description: No Content — user soft-deleted
+  "/api/v1/assignable_users":
+    get:
+      summary: List users assignable to incidents and corrective actions
+      tags:
+      - assignable_users
+      security:
+      - bearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        schema:
+          type: string
+        required: false
+      responses:
+        '200':
+          description: OK — payload exposes only id, name, email, role
+        '403':
+          description: Forbidden — worker cannot list assignable users
+        '401':
+          description: Unauthorized — missing JWT
   "/api/v1/incidents/{incident_id}/attachments":
     parameters:
     - name: incident_id
@@ -641,6 +661,24 @@ paths:
       responses:
         '204':
           description: No Content — author deletes their own comment
+  "/api/v1/corrective_actions/{corrective_action_id}/events":
+    parameters:
+    - name: corrective_action_id
+      in: path
+      schema:
+        type: integer
+      required: true
+    get:
+      summary: List events for a corrective action
+      tags:
+      - corrective_actions
+      security:
+      - bearerAuth: []
+      responses:
+        '200':
+          description: OK — chronological list, oldest first
+        '404':
+          description: Not Found — action does not exist
   "/api/v1/incidents/{incident_id}/corrective_actions":
     parameters:
     - name: incident_id
@@ -668,7 +706,7 @@ paths:
       parameters: []
       responses:
         '201':
-          description: Created — emits CorrectiveActionAssigned to outbox
+          description: Created — note is recorded as the :assigned audit event
         '403':
           description: Forbidden — workers cannot create corrective actions
         '422':
@@ -702,6 +740,8 @@ paths:
                       format: date-time
                     assignee_id:
                       type: integer
+                    note:
+                      type: string
         required: true
   "/api/v1/corrective_actions/{id}":
     parameters:
@@ -737,7 +777,7 @@ paths:
       parameters: []
       responses:
         '200':
-          description: Transition applied — assignee starts action
+          description: Transition records the optional note on the event row
         '422':
           description: Invalid or unknown event
           content:
@@ -759,6 +799,8 @@ paths:
                   - complete
                   - verify
                   - cancel
+                note:
+                  type: string
         required: true
   "/api/v1/dashboard":
     get:

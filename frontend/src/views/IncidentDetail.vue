@@ -40,8 +40,9 @@ import {
   listIncidentActions,
   createIncidentAction
 } from "@/api/incidents";
-import { transitionAction } from "@/api/actions";
-import { listOrgUsers } from "@/api/admin";
+import { transitionAction, listActionEvents, type ActionTransition } from "@/api/actions";
+import type { CorrectiveActionEventAttributes } from "@/types/api";
+import { listAssignableUsers } from "@/api/users";
 import { useAuthStore } from "@/stores/auth";
 import { findIncluded } from "@/utils/jsonapi";
 import {
@@ -88,7 +89,22 @@ const attachments = ref<{ id: string; attrs: AttachmentAttributes }[]>([]);
 const actions = ref<{ id: string; attrs: CorrectiveActionAttributes }[]>([]);
 const orgUsers = ref<{ id: string; name: string; email: string; role: string }[]>([]);
 
-const tab = ref<string>("details");
+const KNOWN_TABS = new Set([
+  "details",
+  "witnesses",
+  "comments",
+  "actions",
+  "versions"
+]);
+
+// Notification deep-links append e.g. `#actions` so a recipient lands on the
+// right tab. Anything outside the known set falls back to "details".
+function tabFromHash(hash: string): string {
+  const name = hash.replace(/^#/, "");
+  return KNOWN_TABS.has(name) ? name : "details";
+}
+
+const tab = ref<string>(tabFromHash(route.hash));
 
 const attrs = computed(() => incident.value?.data.attributes ?? null);
 const site = computed(() => {
@@ -185,15 +201,17 @@ async function loadAux() {
 async function loadOrgUsers() {
   if (auth.user?.role !== "admin" && auth.user?.role !== "investigator") return;
   try {
-    const res = await listOrgUsers();
+    const res = await listAssignableUsers();
     orgUsers.value = res.data.map((r) => ({
       id: r.id,
       name: r.attributes.name ?? "",
       email: r.attributes.email ?? "",
       role: r.attributes.role ?? "worker"
     }));
-  } catch {
-    /* fine — pickers fall back to read-only */
+  } catch (e) {
+    message.error(
+      `Could not load assignee list: ${(e as ApiError).message ?? "unknown error"}`
+    );
   }
 }
 
@@ -201,6 +219,13 @@ watch(incidentId, async () => {
   await loadIncident();
   await loadAux();
 });
+
+// Update the selected tab if the URL hash changes — e.g. the user clicks
+// another notification link to the same incident with a different anchor.
+watch(
+  () => route.hash,
+  (h) => { tab.value = tabFromHash(h); }
+);
 onMounted(async () => {
   await loadIncident();
   await loadAux();
@@ -311,6 +336,7 @@ async function onUpload({ file }: { file: { file?: File | null } }) {
 const newAction = ref({
   title: "",
   description: "",
+  note: "",
   due_date: Date.now() + 7 * 24 * 3600_000,
   assignee_id: null as number | null
 });
@@ -325,12 +351,14 @@ async function postAction() {
     await createIncidentAction(incidentId.value, {
       title: newAction.value.title,
       description: newAction.value.description,
+      note: newAction.value.note || undefined,
       due_date: new Date(newAction.value.due_date).toISOString(),
       assignee_id: newAction.value.assignee_id
     });
     newAction.value = {
       title: "",
       description: "",
+      note: "",
       due_date: Date.now() + 7 * 24 * 3600_000,
       assignee_id: null
     };
@@ -341,17 +369,48 @@ async function postAction() {
   }
 }
 
-async function actionTransition(
-  actionId: string,
-  event: "start" | "complete" | "verify"
-) {
+// ---- transition dialog ------------------------------------------------------
+//
+// Every transition opens this dialog so the operator can attach an optional
+// note before the state change fires. Confirming POSTs to /transitions with
+// { event, note }.
+const TRANSITION_TITLES: Record<ActionTransition, string> = {
+  start:    "Start action",
+  complete: "Mark as done",
+  verify:   "Verify action",
+  cancel:   "Cancel action"
+};
+
+const transitionDialog = ref<{
+  show: boolean;
+  actionId: string | null;
+  event: ActionTransition | null;
+  note: string;
+}>({
+  show: false,
+  actionId: null,
+  event: null,
+  note: ""
+});
+
+const transitionDialogTitle = computed(() =>
+  transitionDialog.value.event ? TRANSITION_TITLES[transitionDialog.value.event] : ""
+);
+
+function openTransitionDialog(actionId: string, event: ActionTransition) {
+  transitionDialog.value = { show: true, actionId, event, note: "" };
+}
+
+async function confirmTransition() {
+  const { actionId, event, note } = transitionDialog.value;
+  if (!actionId || !event) return;
   try {
-    await transitionAction(actionId, event);
+    await transitionAction(actionId, event, note || undefined);
+    transitionDialog.value.show = false;
     message.success(`Action: ${event}`);
-    // Reload the incident itself too: verifying the last corrective action
-    // triggers maybe_close_parent_incident! on the backend, which auto-closes
-    // the incident. loadAux() alone does not refresh incident.value.
-    await Promise.all([loadIncident(), loadAux()]);
+    // Verifying the last corrective action auto-closes the parent incident on
+    // the backend, so we have to reload both views (loadAux alone misses it).
+    await Promise.all([ loadIncident(), loadAux() ]);
   } catch (e) {
     message.error(`Action transition failed: ${(e as ApiError).message}`);
   }
@@ -364,6 +423,76 @@ function allowedForAction(
   if (!auth.user) return [];
   const isMine = String(assignee_id) === auth.user.id;
   return allowedActionTransitions(action_state, auth.user.role, isMine);
+}
+
+// ---- corrective-action activity feed ---------------------------------------
+
+interface ActionEventRow {
+  id: string;
+  event_name: CorrectiveActionEventAttributes["event_name"];
+  note: string | null;
+  actor_id: number;
+  created_at: string;
+}
+
+const actionEvents = ref<Record<string, ActionEventRow[]>>({});
+const actionEventsLoading = ref<Record<string, boolean>>({});
+const actionShowActivity = ref<Record<string, boolean>>({});
+
+async function toggleActivity(actionId: string) {
+  const isOpen = actionShowActivity.value[actionId] === true;
+  if (isOpen) {
+    actionShowActivity.value = { ...actionShowActivity.value, [actionId]: false };
+    return;
+  }
+  actionShowActivity.value = { ...actionShowActivity.value, [actionId]: true };
+  await loadActionEvents(actionId);
+}
+
+async function loadActionEvents(actionId: string) {
+  actionEventsLoading.value = { ...actionEventsLoading.value, [actionId]: true };
+  try {
+    const res = await listActionEvents(actionId);
+    actionEvents.value = {
+      ...actionEvents.value,
+      [actionId]: res.data.map((r) => ({
+        id: r.id,
+        event_name: r.attributes.event_name,
+        note: r.attributes.note,
+        actor_id: r.attributes.actor_id,
+        created_at: r.attributes.created_at
+      }))
+    };
+  } catch (e) {
+    message.error(`Could not load activity: ${(e as ApiError).message}`);
+  } finally {
+    actionEventsLoading.value = { ...actionEventsLoading.value, [actionId]: false };
+  }
+}
+
+const ACTION_EVENT_LABELS: Record<CorrectiveActionEventAttributes["event_name"], string> = {
+  assigned:  "assigned",
+  started:   "started",
+  completed: "marked as done",
+  verified:  "verified",
+  cancelled: "cancelled"
+};
+
+function eventTimelineType(name: CorrectiveActionEventAttributes["event_name"]) {
+  switch (name) {
+    case "assigned":  return "info";
+    case "started":   return "default";
+    case "completed": return "success";
+    case "verified":  return "success";
+    case "cancelled": return "error";
+    default:          return "default";
+  }
+}
+
+function eventTimelineTitle(evt: ActionEventRow) {
+  const actor = orgUsers.value.find((u) => Number(u.id) === evt.actor_id);
+  const who = actor?.name ?? `User #${evt.actor_id}`;
+  return `${who} ${ACTION_EVENT_LABELS[evt.event_name]}`;
 }
 
 // ---- versions / audit trail rendering --------------------------------------
@@ -402,6 +531,31 @@ const VERSION_FIELD_LABEL: Record<string, string> = {
 };
 const VERSION_HIDDEN_FIELDS = new Set(["created_at", "updated_at", "id"]);
 
+function userNameById(id: unknown): string | null {
+  const num = Number(id);
+  if (!Number.isFinite(num)) return null;
+  const u = orgUsers.value.find((x) => Number(x.id) === num);
+  return u?.name ?? null;
+}
+
+function siteNameById(id: unknown): string | null {
+  const num = Number(id);
+  if (!Number.isFinite(num)) return null;
+  const s = auth.sites.find((x) => Number(x.id) === num);
+  return s?.name ?? null;
+}
+
+function organizationNameById(id: unknown): string | null {
+  const num = Number(id);
+  if (!Number.isFinite(num)) return null;
+  // The user only sees incidents in their own org, so the only matching id
+  // is auth.organization.id. Anything else falls back to the raw id.
+  if (auth.organization && Number(auth.organization.id) === num) {
+    return auth.organization.name;
+  }
+  return null;
+}
+
 function formatVersionValue(field: string, value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";
   if (field === "severity" && typeof value === "number") {
@@ -409,6 +563,15 @@ function formatVersionValue(field: string, value: unknown): string {
   }
   if (field.endsWith("_at") && typeof value === "string") {
     return fmtDate(value);
+  }
+  if (field === "reporter_id" || field === "assignee_id") {
+    return userNameById(value) ?? `User #${value}`;
+  }
+  if (field === "site_id") {
+    return siteNameById(value) ?? `Site #${value}`;
+  }
+  if (field === "organization_id") {
+    return organizationNameById(value) ?? `Org #${value}`;
   }
   if (typeof value === "string") return value;
   return JSON.stringify(value);
@@ -765,6 +928,14 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
                       :autosize="{ minRows: 2 }"
                     />
                   </n-form-item>
+                  <n-form-item label="Note for assignee (optional)">
+                    <n-input
+                      v-model:value="newAction.note"
+                      type="textarea"
+                      :autosize="{ minRows: 2, maxRows: 4 }"
+                      placeholder="Why are you assigning this now? Context for the worker."
+                    />
+                  </n-form-item>
                   <n-form-item label="Due date">
                     <n-date-picker
                       v-model:value="newAction.due_date"
@@ -821,11 +992,41 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
                         v-for="ev in allowedForAction(a.attrs.state, a.attrs.assignee_id)"
                         :key="ev"
                         size="small"
-                        @click="actionTransition(a.id, ev)"
+                        @click="openTransitionDialog(a.id, ev)"
                       >
                         {{ ev }}
                       </n-button>
+                      <n-button
+                        size="small"
+                        text
+                        @click="toggleActivity(a.id)"
+                      >
+                        {{ actionShowActivity[a.id] ? "Hide activity" : "Show activity" }}
+                      </n-button>
                     </n-space>
+
+                    <div
+                      v-if="actionShowActivity[a.id]"
+                      style="margin-top: 12px"
+                    >
+                      <n-spin :show="actionEventsLoading[a.id] === true">
+                        <n-empty
+                          v-if="(actionEvents[a.id]?.length ?? 0) === 0 && actionEventsLoading[a.id] !== true"
+                          description="No activity yet"
+                          size="small"
+                        />
+                        <n-timeline v-else>
+                          <n-timeline-item
+                            v-for="evt in actionEvents[a.id] ?? []"
+                            :key="evt.id"
+                            :type="eventTimelineType(evt.event_name)"
+                            :title="eventTimelineTitle(evt)"
+                            :content="evt.note ?? ''"
+                            :time="fmtDate(evt.created_at)"
+                          />
+                        </n-timeline>
+                      </n-spin>
+                    </div>
                   </n-thing>
                 </n-list-item>
                 <n-list-item v-if="!actions.length">
@@ -885,6 +1086,23 @@ function versionRows(v: { attrs: VersionAttributes }): VersionRow[] {
         </n-card>
       </template>
     </n-spin>
+
+    <n-modal
+      v-model:show="transitionDialog.show"
+      preset="dialog"
+      :title="transitionDialogTitle"
+      positive-text="Confirm"
+      negative-text="Cancel"
+      @positive-click="confirmTransition"
+      @negative-click="transitionDialog.show = false"
+    >
+      <n-input
+        v-model:value="transitionDialog.note"
+        type="textarea"
+        :autosize="{ minRows: 2, maxRows: 6 }"
+        placeholder="Optional note"
+      />
+    </n-modal>
   </n-space>
 </template>
 

@@ -12,6 +12,13 @@ class CorrectiveAction < ApplicationRecord
 
   has_many_attached :evidence
 
+  has_many :events, class_name: "CorrectiveActionEvent", dependent: :destroy
+
+  # Set by the controller (or test) before invoking an AASM event method.
+  # AASM events don't accept arguments, so we pass the operator's note through
+  # this thread-local-per-instance attribute. Cleared inside log_transition!.
+  attr_accessor :pending_note
+
   delegate :organization_id, to: :incident
 
   # ----- Validations ---------------------------------------------------------
@@ -35,23 +42,53 @@ class CorrectiveAction < ApplicationRecord
 
     event :start do
       transitions from: :open, to: :in_progress
+      after do
+        log = log_transition!(:started)
+        publish_event!(
+          "CorrectiveActionStarted",
+          recipient_user_ids: [ created_by_id, incident.assignee_id ].compact.uniq,
+          note: log.note
+        )
+      end
     end
 
     event :complete do
       transitions from: :in_progress, to: :done
-      after { update_column(:completed_at, Time.current) }
+      after do
+        update_column(:completed_at, Time.current)
+        log = log_transition!(:completed)
+        publish_event!(
+          "CorrectiveActionCompleted",
+          recipient_user_ids: completion_recipient_ids,
+          note: log.note
+        )
+      end
     end
 
     event :verify do
       transitions from: :done, to: :verified
       after do
         update_column(:verified_at, Time.current)
+        log = log_transition!(:verified)
+        publish_event!(
+          "CorrectiveActionVerified",
+          recipient_user_ids: [ assignee_id ].compact,
+          note: log.note
+        )
         maybe_close_parent_incident!
       end
     end
 
     event :cancel do
       transitions from: %i[open in_progress done], to: :cancelled
+      after do
+        log = log_transition!(:cancelled)
+        publish_event!(
+          "CorrectiveActionCancelled",
+          recipient_user_ids: [ assignee_id ].compact,
+          note: log.note
+        )
+      end
     end
   end
 
@@ -61,7 +98,11 @@ class CorrectiveAction < ApplicationRecord
   # are awkward (assignee may change in the same save), so we mirror Incident
   # and trigger from the controller explicitly.
   def publish_assigned_event!
-    publish_event!("CorrectiveActionAssigned", recipient_user_ids: [ assignee_id ].compact)
+    publish_event!(
+      "CorrectiveActionAssigned",
+      recipient_user_ids: [ assignee_id ].compact,
+      note: events.where(event_name: "assigned").order(:created_at).last&.note
+    )
   end
 
   def publish_overdue_event!
@@ -78,42 +119,74 @@ class CorrectiveAction < ApplicationRecord
 
   private
 
-  def publish_event!(event_type, recipient_user_ids:, actor_id_override: nil)
+  def publish_event!(event_type, recipient_user_ids:, note: nil, actor_id_override: nil)
     EventBus.publish!(
       event_type:        event_type,
       topic:             "corrective_actions.v1",
       partition_key:     organization_id.to_s,
       org_id:            organization_id,
       actor_id:          actor_id_override || (Current.user&.id || created_by_id),
-      subject:           event_subject_for(event_type),
+      subject:           event_subject_for(event_type, note: note),
       recipient_user_ids: recipient_user_ids
     )
   end
 
   # Returns only the fields the matching Avro schema declares, with IDs
   # stringified. EventBus#coerce maps Date -> int (epoch days) for the
-  # logical-type date fields.
-  def event_subject_for(event_type)
-    case event_type
-    when "CorrectiveActionAssigned"
-      {
-        action_id:   id.to_s,
-        incident_id: incident_id.to_s,
-        assignee_id: assignee_id.to_s,
-        title:       title,
-        due_date:    due_date.to_date
-      }
-    when "CorrectiveActionOverdue"
-      {
-        action_id:    id.to_s,
-        incident_id:  incident_id.to_s,
-        assignee_id:  assignee_id.to_s,
-        due_date:     due_date.to_date,
-        days_overdue: ((Time.current.to_date - due_date.to_date).to_i)
-      }
-    else
-      { action_id: id.to_s }
-    end
+  # logical-type date fields. Every event subject carries an optional `note`.
+  def event_subject_for(event_type, note: nil)
+    base =
+      case event_type
+      when "CorrectiveActionAssigned"
+        {
+          action_id:   id.to_s,
+          incident_id: incident_id.to_s,
+          assignee_id: assignee_id.to_s,
+          title:       title,
+          due_date:    due_date.to_date
+        }
+      when "CorrectiveActionOverdue"
+        {
+          action_id:    id.to_s,
+          incident_id:  incident_id.to_s,
+          assignee_id:  assignee_id.to_s,
+          due_date:     due_date.to_date,
+          days_overdue: ((Time.current.to_date - due_date.to_date).to_i)
+        }
+      when "CorrectiveActionCompleted"
+        {
+          action_id:    id.to_s,
+          incident_id:  incident_id.to_s,
+          assignee_id:  assignee_id.to_s,
+          title:        title,
+          completed_at: completed_at || Time.current
+        }
+      when "CorrectiveActionStarted", "CorrectiveActionVerified", "CorrectiveActionCancelled"
+        {
+          action_id:   id.to_s,
+          incident_id: incident_id.to_s,
+          assignee_id: assignee_id.to_s,
+          title:       title
+        }
+      else
+        { action_id: id.to_s }
+      end
+
+    base.merge(note: note)
+  end
+
+  def log_transition!(event_name)
+    events.create!(
+      event_name: event_name.to_s,
+      actor_id:   Current.user.id,
+      note:       pending_note
+    ).tap { self.pending_note = nil }
+  end
+
+  # Investigators who should learn the action is ready to verify: the user who
+  # created the action plus the investigator owning the parent incident.
+  def completion_recipient_ids
+    [ created_by_id, incident.assignee_id ].compact.uniq
   end
 
   # When every sibling corrective action on the incident is verified and the

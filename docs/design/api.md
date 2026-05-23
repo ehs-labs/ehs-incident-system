@@ -35,11 +35,14 @@ Local Swagger UI: `http://localhost:3000/api-docs`.
 | Sites | `GET/POST /sites`, `GET/PATCH/DELETE /sites/:id` |
 | Incidents | `GET/POST /incidents`, `GET/PATCH /incidents/:id`, `POST /incidents/:id/transitions` |
 | Incident sub-resources | `/incidents/:id/{attachments,comments,corrective_actions}` |
-| Corrective actions | `GET/PATCH /corrective_actions/:id`, `POST /corrective_actions/:id/transitions` |
+| Corrective actions | `GET/PATCH /corrective_actions/:id`, `POST /corrective_actions/:id/transitions`, `GET /corrective_actions/:id/events` |
+| Assignable users | `GET /assignable_users` (admins and investigators; populates assignee pickers) |
 | Notifications | `GET /notifications`, `PATCH /notifications/:id`, `POST /notifications/mark_all_read` |
 | Dashboard | `GET /dashboard` |
 | Admin | `/admin/users`, `/admin/sites`, `/admin/settings` |
 | Internal (service-to-service) | `GET /internal/users/:id/notification_addresses` |
+
+Both `POST /incidents/:id/corrective_actions` and `POST /corrective_actions/:id/transitions` accept an optional `note` string. The value is recorded on the resulting `corrective_action_events` row (audit log) and propagated through the outbox payload so the notifier can include it in the email + in-app body.
 
 ## State transitions
 

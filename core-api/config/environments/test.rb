@@ -34,6 +34,11 @@ Rails.application.configure do
   # Store uploaded files on the local file system in a temporary directory.
   config.active_storage.service = :test
 
+  # Application-wide adapter is :sidekiq (needs Redis). In tests we use the
+  # in-memory :test adapter so attaching files, sending mailers, etc. don't
+  # require Redis to be reachable from the spec runner.
+  config.active_job.queue_adapter = :test
+
   # Disable caching for Action Mailer templates even if Action Controller
   # caching is enabled.
   config.action_mailer.perform_caching = false

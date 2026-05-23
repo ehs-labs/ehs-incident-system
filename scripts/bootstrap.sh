@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================================
-# bootstrap.sh — bring up the full local stack and seed demo data
+# bootstrap.sh — bring up the full local stack and (optionally) seed demo data
 #
 # Idempotent: safe to run repeatedly. Detects whether infra is already up.
+#
+# Seeding behavior (in precedence order):
+#   --seed / --no-seed        explicit flag
+#   SEED=true|false           explicit env var
+#   SKIP_SEED=true            legacy alias for --no-seed
+#   interactive TTY           prompt the user
+#   non-interactive           default to seeding (preserves CI behavior)
 # ============================================================================
 set -euo pipefail
 
@@ -17,6 +24,43 @@ RESET=$'\033[0m'
 log()  { printf "${GREEN}==> %s${RESET}\n" "$*"; }
 warn() { printf "${YELLOW}!! %s${RESET}\n" "$*"; }
 die()  { printf "${RED}ERROR: %s${RESET}\n" "$*" >&2; exit 1; }
+
+# Parse --seed / --no-seed; pass anything else through.
+for arg in "$@"; do
+  case "$arg" in
+    --seed)    SEED=true  ;;
+    --no-seed) SEED=false ;;
+    -h|--help)
+      cat <<USAGE
+Usage: $(basename "$0") [--seed | --no-seed]
+
+  --seed        Seed demo data without prompting.
+  --no-seed     Skip demo seeding without prompting.
+  (default)     If stdin is a TTY, prompt; otherwise seed.
+
+Env vars:
+  SEED=true|false   Same effect as the corresponding flag.
+  SKIP_SEED=true    Legacy alias for --no-seed.
+USAGE
+      exit 0
+      ;;
+  esac
+done
+
+should_seed() {
+  if [[ "${SKIP_SEED:-}" == "true" ]]; then echo false; return; fi
+  if [[ -n "${SEED:-}" ]]; then echo "$SEED"; return; fi
+  if [[ -t 0 ]]; then
+    local ans
+    read -rp "$(printf "${GREEN}?${RESET} ")Seed demo data (acme-manufacturing org, 3 sites, 7 users, sample incidents)? [Y/n] " ans
+    case "${ans:-Y}" in
+      [Nn]*) echo false ;;
+      *)     echo true  ;;
+    esac
+  else
+    echo true
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # Preflight
@@ -90,11 +134,13 @@ docker compose up -d --wait core-api sidekiq notifier frontend
 docker compose up -d notifier-karafka
 
 # ---------------------------------------------------------------------------
-# Seed demo data
+# Seed demo data (optional — see "Seeding behavior" at the top of this file)
 # ---------------------------------------------------------------------------
-if [[ "${SKIP_SEED:-}" != "true" ]]; then
+if [[ "$(should_seed)" == "true" ]]; then
   log "Seeding demo data..."
   "$ROOT/scripts/seed-demo.sh"
+else
+  log "Skipping demo data. Sign up fresh at http://localhost:5173/signup."
 fi
 
 # ---------------------------------------------------------------------------

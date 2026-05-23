@@ -397,14 +397,18 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
         .filter({ hasText: `#${incidentId}` });
       await expect(actionRow).toBeVisible({ timeout: 10_000 });
 
-      // Start the action within that row.
+      // Start the action — opens the transition note dialog; confirm without
+      // typing a note. (The dialog was added in feat/corrective-action-flow so
+      // operators can attach context to each transition.)
       await actionRow.getByRole("button", { name: "start" }).click();
+      await pageWorker.getByRole("button", { name: "Confirm" }).click();
 
       // The table reloads; the row now shows "in_progress" and a "complete" button.
       await expect(actionRow.getByText("in_progress")).toBeVisible({ timeout: 10_000 });
 
-      // Complete the action.
+      // Complete the action — same confirm-the-dialog flow.
       await actionRow.getByRole("button", { name: "complete" }).click();
+      await pageWorker.getByRole("button", { name: "Confirm" }).click();
 
       await expect(actionRow.getByText("done")).toBeVisible({ timeout: 10_000 });
     } finally {
@@ -427,6 +431,8 @@ test.describe.serial("Golden path — full incident lifecycle", () => {
       // Click the action-level "verify" button (inside the n-list, not the header).
       const actionsList = pageInv2.locator(".n-list");
       await actionsList.getByRole("button", { name: "verify" }).first().click();
+      // Transition modal opens — confirm without typing a note.
+      await pageInv2.getByRole("button", { name: "Confirm" }).click();
 
       await expect(pageInv2.getByText("verified")).toBeVisible({ timeout: 10_000 });
 

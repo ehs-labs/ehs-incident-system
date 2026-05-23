@@ -25,6 +25,43 @@ log()  { printf "${GREEN}==> %s${RESET}\n" "$*"; }
 warn() { printf "${YELLOW}!! %s${RESET}\n" "$*"; }
 die()  { printf "${RED}ERROR: %s${RESET}\n" "$*" >&2; exit 1; }
 
+# Parse --seed / --no-seed and --help; pass anything else through to later args.
+for arg in "$@"; do
+  case "$arg" in
+    --seed)    SEED=true  ;;
+    --no-seed) SEED=false ;;
+    -h|--help)
+      cat <<USAGE
+Usage: $(basename "$0") [--seed | --no-seed]
+
+  --seed        Seed demo data without prompting.
+  --no-seed     Skip demo seeding without prompting.
+  (default)     If stdin is a TTY, prompt; otherwise seed.
+
+Env vars:
+  SEED=true|false   Same effect as the corresponding flag.
+  SKIP_SEED=true    Legacy alias for --no-seed.
+USAGE
+      exit 0
+      ;;
+  esac
+done
+
+should_seed() {
+  if [[ "${SKIP_SEED:-}" == "true" ]]; then echo false; return; fi
+  if [[ -n "${SEED:-}" ]]; then echo "$SEED"; return; fi
+  if [[ -t 0 ]]; then
+    local ans
+    read -rp "$(printf "${GREEN}?${RESET} ")Seed demo data (acme-manufacturing org, 3 sites, 7 users, sample incidents)? [Y/n] " ans
+    case "${ans:-Y}" in
+      [Nn]*) echo false ;;
+      *)     echo true  ;;
+    esac
+  else
+    echo true
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # Configurable via environment
 # ---------------------------------------------------------------------------
@@ -326,5 +363,9 @@ case "$CONTEXT" in
 esac
 
 apply_and_wait
-seed_demo
+if [[ "$(should_seed)" == "true" ]]; then
+  seed_demo
+else
+  log "Skipping demo data. Sign up fresh at the frontend ingress."
+fi
 print_instructions

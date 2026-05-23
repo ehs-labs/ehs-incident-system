@@ -1,7 +1,7 @@
 {
   "type": "record",
-  "name": "CorrectiveActionOverdue",
-  "doc": "Emitted by the nightly scan job for each corrective action past its due date.",
+  "name": "CorrectiveActionCompleted",
+  "doc": "Emitted when an assignee transitions a corrective action to :done. Notifies the investigator(s) who own the action so they can verify it.",
   "fields": [
     {
       "name": "event_id",
@@ -10,7 +10,7 @@
     {
       "name": "event_type",
       "type": "string",
-      "default": "CorrectiveActionOverdue"
+      "default": "CorrectiveActionCompleted"
     },
     {
       "name": "version",
@@ -30,14 +30,13 @@
     },
     {
       "name": "actor_id",
-      "type": "string",
-      "doc": "System actor id (constant)"
+      "type": "string"
     },
     {
       "name": "subject",
       "type": {
         "type": "record",
-        "name": "CorrectiveActionOverdueSubject",
+        "name": "CorrectiveActionCompletedSubject",
         "fields": [
           {
             "name": "action_id",
@@ -52,15 +51,15 @@
             "type": "string"
           },
           {
-            "name": "due_date",
-            "type": {
-              "type": "int",
-              "logicalType": "date"
-            }
+            "name": "title",
+            "type": "string"
           },
           {
-            "name": "days_overdue",
-            "type": "int"
+            "name": "completed_at",
+            "type": {
+              "type": "long",
+              "logicalType": "timestamp-millis"
+            }
           },
           {
             "name": "note",

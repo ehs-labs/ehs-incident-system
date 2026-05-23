@@ -1,0 +1,58 @@
+{
+  "type": "record",
+  "name": "CorrectiveActionCancelled",
+  "doc": "Emitted when a corrective action is cancelled.",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": "string"
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "default": "CorrectiveActionCancelled"
+    },
+    {
+      "name": "version",
+      "type": "int",
+      "default": 1
+    },
+    {
+      "name": "occurred_at",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "org_id",
+      "type": "string"
+    },
+    {
+      "name": "actor_id",
+      "type": "string"
+    },
+    {
+      "name": "subject",
+      "type": {
+        "type": "record",
+        "name": "CorrectiveActionCancelledSubject",
+        "fields": [
+          { "name": "action_id",   "type": "string" },
+          { "name": "incident_id", "type": "string" },
+          { "name": "assignee_id", "type": "string" },
+          { "name": "title",       "type": "string" },
+          { "name": "note",        "type": ["null", "string"], "default": null }
+        ]
+      }
+    },
+    {
+      "name": "recipient_user_ids",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "default": []
+    }
+  ]
+}

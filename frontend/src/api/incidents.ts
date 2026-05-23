@@ -191,6 +191,7 @@ export async function createIncidentAction(
     description?: string;
     due_date: string;
     assignee_id: number;
+    note?: string;
   }
 ) {
   const res = await api.post<JsonApiSingle<CorrectiveActionAttributes>>(
