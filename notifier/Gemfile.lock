@@ -68,11 +68,11 @@ GEM
       async-http (~> 0.56)
     async-pool (0.11.2)
       async (>= 2.0)
-    async-service (0.22.0)
+    async-service (0.23.0)
       async
       async-container (~> 0.34)
       string-format (~> 0.2)
-    async-utilization (0.3.2)
+    async-utilization (0.4.0)
       console (~> 1.0)
     async-websocket (0.30.0)
       async-http (~> 0.76)
@@ -84,7 +84,7 @@ GEM
     avro_turf (1.20.1)
       avro (>= 1.11.3, < 1.13)
       excon (>= 0.104, < 2)
-    bake (0.24.1)
+    bake (0.25.0)
       bigdecimal
       samovar (~> 2.1)
     base64 (0.3.0)
@@ -95,7 +95,7 @@ GEM
       thor (~> 1.0)
     concurrent-ruby (1.3.6)
     connection_pool (3.0.2)
-    console (1.34.3)
+    console (1.35.1)
       fiber-annotation
       fiber-local (~> 1.1)
       json
@@ -138,7 +138,7 @@ GEM
       activesupport (>= 6.1.0)
     faker (3.8.0)
       i18n (>= 1.8.11, < 2)
-    falcon (0.55.3)
+    falcon (0.55.4)
       async
       async-container (~> 0.20)
       async-http (~> 0.75)
