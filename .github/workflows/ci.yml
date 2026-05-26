@@ -310,7 +310,7 @@ jobs:
     name: Build & push images
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, security, test-core-api, test-notifier, test-frontend, contracts]
+    needs: [lint, security, test-core-api, test-notifier, test-frontend, contracts, e2e]
     permissions:
       contents: read
       packages: write
