@@ -427,7 +427,7 @@ GEM
       console (~> 1.0)
       mapping (~> 1.0)
     securerandom (0.4.1)
-    sequel (5.104.0)
+    sequel (5.105.0)
       bigdecimal
     sequel-postgres-pr (0.9.0)
     simplecov (0.22.0)
