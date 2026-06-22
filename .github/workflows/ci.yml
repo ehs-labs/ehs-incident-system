@@ -18,7 +18,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
@@ -73,7 +73,7 @@ jobs:
     name: Security scans
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -154,7 +154,7 @@ jobs:
       JWT_DENYLIST_SECRET: ci-jwt-denylist-secret-replace-me
       FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -211,7 +211,7 @@ jobs:
       FIELD_CIPHER_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       JWT_SECRET: ci-jwt-secret-replace-me
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: ruby/setup-ruby@v1
         with:
@@ -232,7 +232,7 @@ jobs:
     name: Test frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
         with:
@@ -265,7 +265,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-core-api]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Download OpenAPI artifact
         uses: actions/download-artifact@v8
@@ -318,7 +318,7 @@ jobs:
       matrix:
         service: [core-api, notifier, frontend]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v4
 
@@ -353,7 +353,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test-core-api, test-notifier, test-frontend]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Copy env template
         run: cp .env.example .env
