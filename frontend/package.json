@@ -35,7 +35,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@playwright/test": "^1.47.2",
+    "@playwright/test": "^1.61.1",
     "@testing-library/vue": "^8.1.0",
     "@types/node": "^24.12.4",
     "@typescript-eslint/eslint-plugin": "^8.61.0",
