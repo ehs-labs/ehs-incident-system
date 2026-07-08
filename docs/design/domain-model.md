@@ -14,6 +14,7 @@ erDiagram
     INCIDENT     ||--o{ CORRECTIVE_ACTION : "results in"
     USER         ||--o{ CORRECTIVE_ACTION : "is assigned"
     CORRECTIVE_ACTION ||--o| ATTACHMENT : "evidence"
+    CORRECTIVE_ACTION ||--o{ CORRECTIVE_ACTION_EVENT : "audit log"
 
     ORGANIZATION {
         ulid id PK

@@ -27,6 +27,26 @@ A multi-tenant EHS incident reporting and follow-up platform inspired by HSI Don
 
 Notifications fan out across **email**, **Telegram**, and **in-app** (WebSocket) channels via a Kafka pipeline with a dedicated notification service.
 
+## Domain model
+
+A multi-tenant spine (`organization → site ↔ user` via site memberships) under incidents and their follow-up trail. Incidents and corrective actions each run a persisted state machine, coupled by one invariant: an incident closes only when every non-cancelled corrective action on it is verified.
+
+```mermaid
+erDiagram
+    ORGANIZATION ||--o{ SITE : has
+    ORGANIZATION ||--o{ USER : has
+    SITE         }o--o{ USER : "membership"
+    USER         ||--o{ INCIDENT : "reports / investigates"
+    SITE         ||--o{ INCIDENT : "occurs at"
+    INCIDENT     ||--o{ WITNESS : has
+    INCIDENT     ||--o{ COMMENT : has
+    INCIDENT     ||--o{ CORRECTIVE_ACTION : "results in"
+    USER         ||--o{ CORRECTIVE_ACTION : "assigned / created by"
+    CORRECTIVE_ACTION ||--o{ CORRECTIVE_ACTION_EVENT : "audit log"
+```
+
+Full ER diagram with attributes and constraint notes: [`docs/design/domain-model.md`](docs/design/domain-model.md) · state machines: [`docs/design/state-machines.md`](docs/design/state-machines.md) · authoritative DDL: [`core-api/db/schema.rb`](core-api/db/schema.rb)
+
 ## Architecture
 
 ```mermaid
