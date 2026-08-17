@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Investigators now receive a notification when an assignee marks a corrective action as done — including the worker's optional completion note.
 
 ### Changed
+- README opens with a Domain model section: compact ER diagram and links to the full ER doc, state machines, and `schema.rb`. The `domain-model.md` diagram now connects `CORRECTIVE_ACTION_EVENT` to its parent (entity was documented but rendered disconnected).
 - `EventBus#publish!` no longer compacts the subject hash; nullable fields are emitted explicitly as `null` so consumers see them.
 - Test environment uses ActiveJob's `:test` queue adapter so specs run from the host without Redis.
 
