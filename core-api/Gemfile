@@ -34,7 +34,6 @@ gem "jsonapi-serializer"
 
 # ----- File storage ----------------------------------------------------------
 gem "aws-sdk-s3", require: false   # ActiveStorage S3 service (MinIO/AWS)
-gem "image_processing"             # ActiveStorage variant processing
 
 # ----- Web layer -------------------------------------------------------------
 gem "rack-cors"
