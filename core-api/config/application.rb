@@ -44,6 +44,12 @@ module CoreApi
     # Sidekiq backs every ActiveJob queue.
     config.active_job.queue_adapter = :sidekiq
 
+    # Attachments are stored and served as uploaded; nothing derives variants.
+    # load_defaults 7.2 would otherwise select :vips, and ActiveStorage loads
+    # that transformer during boot, so the absent backend gem aborts startup
+    # rather than degrading at the first variant.
+    config.active_storage.variant_processor = :disabled
+
     # Rails 7.2 schema.rb handles `enable_extension`, GIN indexes, and the
     # tsvector column type fine — no need for the heavier SQL-format dump.
 
